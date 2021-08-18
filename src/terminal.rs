@@ -14,10 +14,20 @@ impl Terminal {
         let size = termion::terminal_size()?;
         let term = Self {
             size: (size.0, size.1),
-            _stdout: stdout().into_raw_mode()?
+            _stdout: stdout().into_raw_mode()?,
         };
 
         Ok(term)
+    }
+
+    pub fn cursor_hide() {
+        print!("{}", termion::cursor::Hide);
+        Self::flush();
+    }
+
+    pub fn cursor_show() {
+        print!("{}", termion::cursor::Show);
+        Self::flush();
     }
 
     pub fn clear_screen() {
@@ -25,11 +35,9 @@ impl Terminal {
         io::stdout().flush();
     }
 
-    pub fn refresh_screen() -> Result<(), std::io::Error> {
-        // This byte clears the screen
-        Terminal::clear_screen();
-        Terminal::cursor_position(0, 0);
-        Self::flush()
+    pub fn clear_current_line() {
+        print!("{}", termion::clear::CurrentLine);
+        Self::flush();
     }
 
     pub fn flush() -> Result<(), std::io::Error> {
@@ -37,8 +45,9 @@ impl Terminal {
     }
 
     pub fn cursor_position(x: u16, y: u16) {
-        let x = x + 1;
-        let y = y + 1;
+        // using `saturating_add` prevents the buffer from overflowing.
+        let x = x.saturating_add(1);
+        let y = y.saturating_add(1);
 
         print!("{}", termion::cursor::Goto(x, y));
         Self::flush();
