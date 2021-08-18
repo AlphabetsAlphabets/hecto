@@ -1,59 +1,54 @@
-use std::io::{self, stdout, Write};
+use super::terminal;
+use terminal::Terminal;
 
 use termion::event::Key;
-use termion::input::TermRead;
-use termion::raw::IntoRawMode;
 
 pub struct Editor {
-    should_quit: bool
-}
-
-pub fn read_key() -> Result<Key, std::io::Error> {
-    loop {
-        if let Some(key) = io::stdin().lock().keys().next() {
-            return key;
-        }
-    }
+    should_quit: bool,
+    terminal: Terminal
 }
 
 impl Editor {
     pub fn new() -> Self {
         Self {
-            should_quit: false
+            should_quit: false,
+            terminal: Terminal::new().expect("Failed to initialize terminal.")
         }
     }
 
-    fn refresh_screen(&self) -> Result<(), std::io::Error> {
-        // This byte clears the screen
-        print!("\x1b[2J");
-        io::stdout().flush()
-    }
-
     pub fn run(&mut self) {
-        let _stdout = stdout().into_raw_mode().unwrap();
-
         loop {
-            if let Err(error) = self.refresh_screen() {
+            if let Err(error) = Terminal::refresh_screen() {
+                Terminal::clear_screen();
                 panic!(error);
             };
 
             if self.should_quit {
                 break;
-            };
+            } else {
+                self.draw_tildes();
+                Terminal::cursor_position(0, 0);
+            }
 
             if let Err(error) = self.process_keypress() {
                 panic!(error);
+                Terminal::cursor_position(0, 0);
             };
-
         }
     }
 
     fn process_keypress(&mut self) -> Result<(), std::io::Error> {
-        let pressed_key = read_key()?;
+        let pressed_key = Terminal::read_key()?;
         match pressed_key {
             Key::Ctrl('q') => self.should_quit = true,
             _ => (),
         }
         Ok(())
+    }
+
+    fn draw_tildes(&self) {
+        for _ in 0..self.terminal.size().1 {
+            println!("~\r");
+        }
     }
 }
