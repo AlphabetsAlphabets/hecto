@@ -5,6 +5,12 @@ use termion::event::Key;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[derive(PartialEq)]
+enum Mode {
+    Insert,
+    Normal
+}
+
 pub struct Position {
     pub x: usize,
     pub y: usize,
@@ -20,6 +26,8 @@ pub struct Editor {
     should_quit: bool,
     terminal: Terminal,
     cursor_position: Position,
+    mode: Mode,
+    status_bar: String
 }
 
 impl Editor {
@@ -28,11 +36,13 @@ impl Editor {
             should_quit: false,
             terminal: Terminal::new().expect("Failed to initialize terminal."),
             cursor_position: Position { x: 0, y: 0 },
+            mode: Mode::Normal,
+            status_bar: "".to_string(),
         }
     }
 
     pub fn refresh_screen(&self) -> Result<(), std::io::Error> {
-        Terminal::cursor_hide();
+        // Terminal::cursor_hide();
         Terminal::cursor_position(&Position::new(0, 0));
         Terminal::flush()
     }
@@ -46,13 +56,13 @@ impl Editor {
 
             if self.should_quit {
                 Terminal::clear_screen();
-                Terminal::cursor_show();
+                // Terminal::cursor_show();
                 break;
             } else {
                 self.draw_tildes();
                 Terminal::cursor_position(&self.cursor_position);
             }
-            Terminal::cursor_show();
+            // Terminal::cursor_show();
 
             if let Err(error) = self.process_keypress() {
                 panic!(error);
@@ -65,7 +75,7 @@ impl Editor {
         let pressed_key = Terminal::read_key()?;
         match pressed_key {
             Key::Ctrl('q') => self.should_quit = true,
-            Key::Up | Key::Down | Key::Left | Key::Right => self.move_cursor(pressed_key),
+            Key::Esc | Key::Char('j') | Key::Char('k') | Key::Char('l') | Key::Char('h') => self.move_cursor(pressed_key),
             _ => (),
         }
         Ok(())
@@ -77,24 +87,39 @@ impl Editor {
         let size = self.terminal.size();
         let width = size.width.saturating_sub(1) as usize;
         let height = size.height.saturating_sub(1) as usize;
+        
+        if self.mode == Mode::Normal {
+            match key {
+                Key::Char('j') => y = y.saturating_sub(1),
+                Key::Char('k') => {
+                    if y < height {
+                        y = y.saturating_add(1)
+                    }
+                },
+                Key::Char('h') => x = x.saturating_sub(1),
+                Key::Char('l') => {
+                    if x < width {
+                        x = x.saturating_add(1)
+                    }
+                },
 
-        match key {
-            Key::Up => y = y.saturating_sub(1),
-            Key::Down => {
-                if y < height {
-                    y = y.saturating_add(1)
+                Key::Char('i') => {
+                    self.mode = Mode::Insert;
                 }
-            },
-            Key::Left => x = x.saturating_sub(1),
-            Key::Right => {
-                if x < width {
-                    x = x.saturating_add(1)
-                }
-            },
-            _ => (),
+                _ => (),
+            }
+
+            self.cursor_position = Position { x, y }
         }
 
-        self.cursor_position = Position { x, y }
+        if self.mode == Mode::Insert {
+            match key {
+                Key::Esc => {
+                    self.mode = Mode::Normal;
+                },
+                _ => ()
+            }
+        }
     }
 
     fn draw_welcome_message(&self) {
@@ -112,7 +137,7 @@ impl Editor {
         println!("{}\r", welcome_message);
     }
 
-    fn draw_tildes(&self) {
+    fn draw_tildes(&mut self) {
         let height = self.terminal.size().height;
         for row in 0..height {
             Terminal::clear_current_line();
@@ -122,5 +147,12 @@ impl Editor {
                 println!("~\r");
             }
         }
+
+        if self.mode == Mode::Normal {
+            self.status_bar = format!("{}{}", self.status_bar, "MODE: NORMAL");
+        } else {
+            self.status_bar = format!("{}{}", self.status_bar, "MODE: INSERT");
+        }
+        println!("{}", self.status_bar);
     }
 }
