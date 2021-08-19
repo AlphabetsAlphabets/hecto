@@ -1,11 +1,14 @@
 use std::io::{self, stdout, Write};
 
+use super::editor::Position;
+
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::{IntoRawMode, RawTerminal};
 
+pub struct Size { pub width: u16, pub height: u16 }
 pub struct Terminal {
-    size: (u16, u16),
+    size: Size,
     _stdout: RawTerminal<std::io::Stdout>,
 }
 
@@ -13,7 +16,7 @@ impl Terminal {
     pub fn new() -> Result<Self, std::io::Error> {
         let size = termion::terminal_size()?;
         let term = Self {
-            size: (size.0, size.1),
+            size: Size { width: size.0, height: size.1 },
             _stdout: stdout().into_raw_mode()?,
         };
 
@@ -44,17 +47,18 @@ impl Terminal {
         io::stdout().flush()
     }
 
-    pub fn cursor_position(x: u16, y: u16) {
+    pub fn cursor_position(pos: &Position) {
         // using `saturating_add` prevents the buffer from overflowing.
-        let x = x.saturating_add(1);
-        let y = y.saturating_add(1);
+        let Position { mut x, mut y } = pos;
+        let x = x.saturating_add(1) as u16;
+        let y = y.saturating_add(1) as u16;
 
         print!("{}", termion::cursor::Goto(x, y));
         Self::flush();
     }
 
-    pub fn size(&self) -> (u16, u16) {
-        (self.size.0, self.size.1)
+    pub fn size(&self) -> &Size {
+        &self.size
     }
 
     pub fn read_key() -> Result<Key, std::io::Error> {
