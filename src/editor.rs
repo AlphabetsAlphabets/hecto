@@ -1,6 +1,9 @@
 use super::terminal;
 use terminal::Terminal;
 
+use super::document;
+use document::{Document, Row};
+
 use termion::event::Key;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -26,6 +29,7 @@ pub struct Editor {
     mode: Mode,
     status_bar: String,
     should_quit: bool,
+    document: Document,
     terminal: Terminal,
     cursor_position: Position,
 }
@@ -33,17 +37,25 @@ pub struct Editor {
 impl Editor {
     pub fn new() -> Self {
         Self {
-            should_quit: false,
-            terminal: Terminal::new().expect("Failed to initialize terminal."),
-            cursor_position: Position { x: 0, y: 0 },
             mode: Mode::Normal,
             status_bar: "".to_string(),
+            should_quit: false,
+            document: Document::open(),
+            terminal: Terminal::new().expect("Failed to initialize terminal."),
+            cursor_position: Position { x: 0, y: 0 },
         }
     }
 
-    pub fn refresh_screen(&self) -> Result<(), std::io::Error> {
+    pub fn refresh_screen(&mut self) -> Result<(), std::io::Error> {
         // Terminal::cursor_hide();
         Terminal::cursor_position(&Position::new(0, 0));
+        if self.should_quit {
+            Terminal::clear_screen();
+        } else {
+            self.draw_rows();
+            self.draw_status_bar();
+            Terminal::cursor_position(&self.cursor_position);
+        }
         Terminal::flush()
     }
 
@@ -55,15 +67,8 @@ impl Editor {
             };
 
             if self.should_quit {
-                Terminal::clear_screen();
-                // Terminal::cursor_show();
                 break;
-            } else {
-                self.draw_tildes();
-                self.status_bar();
-                Terminal::cursor_position(&self.cursor_position);
             }
-            // Terminal::cursor_show();
 
             if let Err(error) = self.process_keypress() {
                 panic!(error);
@@ -73,17 +78,19 @@ impl Editor {
 
     fn process_keypress(&mut self) -> Result<(), std::io::Error> {
         let Position { mut x, mut y } = self.cursor_position;
+
         let pressed_key = Terminal::read_key()?;
         match pressed_key {
             Key::Ctrl('q') => self.should_quit = true,
             Key::Char('j') | Key::Char('k') | Key::Char('l') | Key::Char('h') 
-                | Key::Char('G') | Key::Char('g') | Key::Char('0') | Key::Char('S') => {
-                self.move_cursor(pressed_key)
-            }
+                | Key::Char('G') | Key::Char('g') | Key::Char('0') | Key::Char('s') => {
+                    self.check_mode(pressed_key)
+                }
             Key::Esc => self.change_mode(Mode::Normal),
             Key::Char('i') => self.change_mode(Mode::Insert),
             _ => (),
         }
+
         Ok(())
     }
 
@@ -115,7 +122,7 @@ impl Editor {
             Key::Char('g') => y = 0,
             Key::Char('G') => y = height,
             Key::Char('0') => x = 0,
-            Key::Char('S') => x = width,
+            Key::Char('s') => x = width,
 
             // changing modes
             Key::Char('i') => {
@@ -136,7 +143,7 @@ impl Editor {
         }
     }
 
-    fn move_cursor(&mut self, key: Key) {
+    fn check_mode(&mut self, key: Key) {
         if self.mode == Mode::Normal {
             self.normal_mode(key);
         } else {
@@ -159,11 +166,20 @@ impl Editor {
         println!("{}\r", welcome_message);
     }
 
-    fn draw_tildes(&mut self) {
+    fn draw_row(&self, row: &Row) {
+        let start = 0;
+        let end = self.terminal.size().width as usize;
+        let row = row.render(start, end);
+        println!("{}\r", row);
+    }
+
+    fn draw_rows(&mut self) {
         let height = self.terminal.size().height;
-        for row in 0..height {
+        for terminal_row in 0..height {
             Terminal::clear_current_line();
-            if row == height / 3 {
+            if let Some(row) = self.document.row(terminal_row as usize) {
+                self.draw_row(row);
+            } else if terminal_row == height / 3 {
                 self.draw_welcome_message();
             } else {
                 println!("~\r");
@@ -171,7 +187,7 @@ impl Editor {
         }
     }
 
-    fn status_bar(&mut self) {
+    fn draw_status_bar(&mut self) {
         if self.mode == Mode::Normal {
             self.status_bar = "MODE: NORMAL".to_string();
         } else {
