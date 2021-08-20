@@ -6,7 +6,10 @@ use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::{IntoRawMode, RawTerminal};
 
-pub struct Size { pub width: u16, pub height: u16 }
+pub struct Size {
+    pub width: u16,
+    pub height: u16,
+}
 pub struct Terminal {
     size: Size,
     _stdout: RawTerminal<std::io::Stdout>,
@@ -16,7 +19,10 @@ impl Terminal {
     pub fn new() -> Result<Self, std::io::Error> {
         let size = termion::terminal_size()?;
         let term = Self {
-            size: Size { width: size.0, height: size.1 },
+            size: Size {
+                width: size.0,
+                height: size.1,
+            },
             _stdout: stdout().into_raw_mode()?,
         };
 

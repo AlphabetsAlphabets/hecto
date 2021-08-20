@@ -8,7 +8,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[derive(PartialEq)]
 enum Mode {
     Insert,
-    Normal
+    Normal,
 }
 
 pub struct Position {
@@ -23,11 +23,11 @@ impl Position {
 }
 
 pub struct Editor {
+    mode: Mode,
+    status_bar: String,
     should_quit: bool,
     terminal: Terminal,
     cursor_position: Position,
-    mode: Mode,
-    status_bar: String
 }
 
 impl Editor {
@@ -60,6 +60,7 @@ impl Editor {
                 break;
             } else {
                 self.draw_tildes();
+                self.status_bar();
                 Terminal::cursor_position(&self.cursor_position);
             }
             // Terminal::cursor_show();
@@ -75,55 +76,69 @@ impl Editor {
         let pressed_key = Terminal::read_key()?;
         match pressed_key {
             Key::Ctrl('q') => self.should_quit = true,
-            Key::Esc | Key::Char('j') | Key::Char('k') | Key::Char('l') | Key::Char('h') => self.move_cursor(pressed_key),
+            Key::Char('j') | Key::Char('k') | Key::Char('l') | Key::Char('h') => {
+                self.move_cursor(pressed_key)
+            }
+            Key::Esc => self.change_mode(Mode::Normal),
+            Key::Char('i') => self.change_mode(Mode::Insert),
             _ => (),
         }
         Ok(())
     }
 
-    fn move_cursor(&mut self, key: Key) {
+    fn change_mode(&mut self, change_to: Mode) {
+        self.mode = change_to;
+    }
+
+    fn normal_mode(&mut self, key: Key) {
         let Position { mut x, mut y } = self.cursor_position;
 
         let size = self.terminal.size();
         let width = size.width.saturating_sub(1) as usize;
         let height = size.height.saturating_sub(1) as usize;
-        
-        if self.mode == Mode::Normal {
-            match key {
-                Key::Char('j') => y = y.saturating_sub(1),
-                Key::Char('k') => {
-                    if y < height {
-                        y = y.saturating_add(1)
-                    }
-                },
-                Key::Char('h') => x = x.saturating_sub(1),
-                Key::Char('l') => {
-                    if x < width {
-                        x = x.saturating_add(1)
-                    }
-                },
 
-                Key::Char('i') => {
-                    self.mode = Mode::Insert;
+        match key {
+            Key::Char('k') => y = y.saturating_sub(1),
+            Key::Char('j') => {
+                if y < height {
+                    y = y.saturating_add(1)
                 }
-                _ => (),
+            }
+            Key::Char('h') => x = x.saturating_sub(1),
+            Key::Char('l') => {
+                if x < width {
+                    x = x.saturating_add(1)
+                }
             }
 
-            self.cursor_position = Position { x, y }
+            Key::Char('i') => {
+                self.mode = Mode::Insert;
+            }
+            _ => (),
         }
 
-        if self.mode == Mode::Insert {
-            match key {
-                Key::Esc => {
-                    self.mode = Mode::Normal;
-                },
-                _ => ()
+        self.cursor_position = Position { x, y }
+    }
+
+    fn insert_mode(&mut self, key: Key) {
+        match key {
+            Key::Esc => {
+                self.mode = Mode::Normal;
             }
+            _ => (),
+        }
+    }
+
+    fn move_cursor(&mut self, key: Key) {
+        if self.mode == Mode::Normal {
+            self.normal_mode(key);
+        } else {
+            self.insert_mode(key);
         }
     }
 
     fn draw_welcome_message(&self) {
-        let mut welcome_message = format!("Hecto -- version {}\r", VERSION);         
+        let mut welcome_message = format!("Hecto -- version {}\r", VERSION);
 
         let width = self.terminal.size().width as usize;
         let len = welcome_message.len();
@@ -147,11 +162,13 @@ impl Editor {
                 println!("~\r");
             }
         }
+    }
 
+    fn status_bar(&mut self) {
         if self.mode == Mode::Normal {
-            self.status_bar = format!("{}{}", self.status_bar, "MODE: NORMAL");
+            self.status_bar = "MODE: NORMAL".to_string();
         } else {
-            self.status_bar = format!("{}{}", self.status_bar, "MODE: INSERT");
+            self.status_bar = "MODE: INSERT".to_string();
         }
         println!("{}", self.status_bar);
     }
