@@ -76,7 +76,8 @@ impl Editor {
         let pressed_key = Terminal::read_key()?;
         match pressed_key {
             Key::Ctrl('q') => self.should_quit = true,
-            Key::Char('j') | Key::Char('k') | Key::Char('l') | Key::Char('h') => {
+            Key::Char('j') | Key::Char('k') | Key::Char('l') | Key::Char('h') 
+                | Key::Char('G') | Key::Char('g') | Key::Char('0') | Key::Char('S') => {
                 self.move_cursor(pressed_key)
             }
             Key::Esc => self.change_mode(Mode::Normal),
@@ -111,6 +112,12 @@ impl Editor {
                 }
             }
 
+            Key::Char('g') => y = 0,
+            Key::Char('G') => y = height,
+            Key::Char('0') => x = 0,
+            Key::Char('S') => x = width,
+
+            // changing modes
             Key::Char('i') => {
                 self.mode = Mode::Insert;
             }
