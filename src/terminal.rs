@@ -12,7 +12,7 @@ pub struct Size {
 }
 pub struct Terminal {
     size: Size,
-    _stdout: RawTerminal<std::io::Stdout>,
+    stdout: RawTerminal<std::io::Stdout>,
 }
 
 impl Terminal {
@@ -20,47 +20,33 @@ impl Terminal {
         let size = termion::terminal_size()?;
         let term = Self {
             size: Size {
-                width: size.0,
+                width: size.0 - 1,
                 height: size.1,
             },
-            _stdout: stdout().into_raw_mode()?,
+            stdout: stdout().into_raw_mode()?,
         };
 
         Ok(term)
     }
 
-    pub fn cursor_hide() {
-        print!("{}", termion::cursor::Hide);
-        Self::flush();
+    pub fn clear_screen(&mut self) {
+        write!(self.stdout, "{}", termion::clear::All).unwrap();
+        self.stdout.flush().unwrap();
     }
 
-    pub fn cursor_show() {
-        print!("{}", termion::cursor::Show);
-        Self::flush();
+    pub fn clear_current_line(&mut self) {
+        write!(self.stdout, "{}", termion::clear::CurrentLine);
+        self.stdout.flush().unwrap();
     }
 
-    pub fn clear_screen() {
-        print!("{}", termion::clear::All);
-        io::stdout().flush();
-    }
-
-    pub fn clear_current_line() {
-        print!("{}", termion::clear::CurrentLine);
-        Self::flush();
-    }
-
-    pub fn flush() -> Result<(), std::io::Error> {
-        io::stdout().flush()
-    }
-
-    pub fn cursor_position(pos: &Position) {
+    pub fn cursor_position(&mut self, pos: &Position) {
         // using `saturating_add` prevents the buffer from overflowing.
         let Position { mut x, mut y } = pos;
         let x = x.saturating_add(1) as u16;
         let y = y.saturating_add(1) as u16;
 
-        print!("{}", termion::cursor::Goto(x, y));
-        Self::flush();
+        write!(self.stdout, "{}", termion::cursor::Goto(x, y));
+        self.stdout.flush().unwrap();
     }
 
     pub fn size(&self) -> &Size {

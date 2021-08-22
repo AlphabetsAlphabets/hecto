@@ -12,6 +12,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 enum Mode {
     Insert,
     Normal,
+    Command,
 }
 
 pub struct Position {
@@ -47,27 +48,24 @@ impl Editor {
     }
 
     pub fn refresh_screen(&mut self) -> Result<(), std::io::Error> {
-        // Terminal::cursor_hide();
-        Terminal::cursor_position(&Position::new(0, 0));
-        if self.should_quit {
-            Terminal::clear_screen();
-        } else {
-            self.draw_rows();
-            self.draw_status_bar();
-            Terminal::cursor_position(&self.cursor_position);
-        }
-        Terminal::flush()
+        self.terminal.cursor_position(&Position::new(0, 0));
+        Ok(())
     }
 
     pub fn run(&mut self) {
-        loop {
-            if let Err(error) = self.refresh_screen() {
-                Terminal::clear_screen();
-                panic!(error);
-            };
+        if let Err(error) = self.refresh_screen() {
+            self.terminal.clear_screen();
+            panic!(error);
+        };
 
+        loop {
             if self.should_quit {
+                self.terminal.clear_screen();
                 break;
+            } else {
+                self.draw_rows();
+                self.draw_status_bar();
+                self.terminal.cursor_position(&self.cursor_position);
             }
 
             if let Err(error) = self.process_keypress() {
@@ -124,10 +122,10 @@ impl Editor {
             Key::Char('0') => x = 0,
             Key::Char('s') => x = width,
 
+            Key::Char(':') => todo!("Implement command mode."),
+
             // changing modes
-            Key::Char('i') => {
-                self.mode = Mode::Insert;
-            }
+            Key::Char('i') => self.change_mode(Mode::Insert),
             _ => (),
         }
 
@@ -136,9 +134,7 @@ impl Editor {
 
     fn insert_mode(&mut self, key: Key) {
         match key {
-            Key::Esc => {
-                self.mode = Mode::Normal;
-            }
+            Key::Esc => self.change_mode(Mode::Command),
             _ => (),
         }
     }
@@ -167,16 +163,20 @@ impl Editor {
     }
 
     fn draw_row(&self, row: &Row) {
+        // nothing is wrong with the function the text can be picked correctly
+        // however it can't be printed to the console for some reason.
         let start = 0;
         let end = self.terminal.size().width as usize;
         let row = row.render(start, end);
         println!("{}\r", row);
+        // std::process::abort();
     }
 
     fn draw_rows(&mut self) {
         let height = self.terminal.size().height;
-        for terminal_row in 0..height {
-            Terminal::clear_current_line();
+        for terminal_row in 0..height - 2 {
+            self.terminal.clear_current_line();
+
             if let Some(row) = self.document.row(terminal_row as usize) {
                 self.draw_row(row);
             } else if terminal_row == height / 3 {

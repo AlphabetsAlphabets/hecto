@@ -20,7 +20,7 @@ impl Row {
 
 #[derive(Default)]
 pub struct Document {
-    rows: Vec<Row>,
+    pub rows: Vec<Row>,
 }
 
 impl Document {
