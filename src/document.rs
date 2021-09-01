@@ -35,6 +35,10 @@ impl Document {
         Self { rows }
     }
 
+    pub fn len(&self) -> usize {
+        self.rows.len()
+    }
+
     pub fn row(&self, index: usize) -> Option<&Row> {
         self.rows.get(index)
     }

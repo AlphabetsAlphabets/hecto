@@ -32,6 +32,7 @@ impl Position {
 
 pub struct Editor {
     mode: Mode,
+    offset: Position,
     status_bar: String,
     should_quit: bool,
     document: Document,
@@ -51,6 +52,7 @@ impl Editor {
 
         Self {
             mode: Mode::Normal,
+            offset: Position::default(),
             status_bar: "".to_string(),
             should_quit: false,
             document,
@@ -95,12 +97,13 @@ impl Editor {
             Key::Char('j') | Key::Char('k') | Key::Char('l') | Key::Char('h') 
                 | Key::Char('G') | Key::Char('g') | Key::Char('0') | Key::Char('s') => {
                     self.check_mode(pressed_key)
-                }
+                },
             Key::Esc => self.change_mode(Mode::Normal),
             Key::Char('i') => self.change_mode(Mode::Insert),
             _ => (),
         }
 
+        self.scroll();
         Ok(())
     }
 
@@ -113,7 +116,7 @@ impl Editor {
 
         let size = self.terminal.size();
         let width = size.width.saturating_sub(1) as usize;
-        let height = size.height.saturating_sub(1) as usize;
+        let height = self.document.len();
 
         match key {
             Key::Char('k') => y = y.saturating_sub(1),
@@ -122,7 +125,7 @@ impl Editor {
                     y = y.saturating_add(1)
                 }
             }
-            Key::Char('h') => x = x.saturating_sub(1),
+            Key::Char('h') => x = x.saturating_sub(1), // TODO: Look into the x field in position struct
             Key::Char('l') => {
                 if x < width {
                     x = x.saturating_add(1)
@@ -159,6 +162,25 @@ impl Editor {
         }
     }
 
+    fn scroll(&mut self) {
+        let Position { x, y } = self.cursor_position;
+        let width = self.terminal.size().width as usize;
+        let height = self.terminal.size().height as usize;
+        let mut offset = &mut self.offset;
+
+        if y < offset.y {
+            offset.y = y;
+        } else if y >= offset.y.saturating_add(height) {
+            offset.y = y.saturating_sub(height).saturating_add(1);
+        }
+
+        if x < offset.x {
+            offset.x = x;
+        } else if x >= offset.x.saturating_add(width) {
+            offset.x = x.saturating_sub(width).saturating_add(1);
+        }
+    }
+
     fn draw_welcome_message(&self) {
         let mut welcome_message = format!("Hecto -- version {}\r", VERSION);
 
@@ -175,13 +197,12 @@ impl Editor {
     }
 
     fn draw_row(&self, row: &Row) {
-        // nothing is wrong with the function the text can be picked correctly
-        // however it can't be printed to the console for some reason.
-        let start = 0;
-        let end = self.terminal.size().width as usize;
+        let width = self.terminal.size().width as usize;
+        let start = self.offset.x;
+        let end = self.offset.x + width;
         let row = row.render(start, end);
+
         println!("{}\r", row);
-        // std::process::abort();
     }
 
     fn draw_rows(&mut self) {
@@ -189,7 +210,7 @@ impl Editor {
         for terminal_row in 0..height - 2 {
             self.terminal.clear_current_line();
 
-            if let Some(row) = self.document.row(terminal_row as usize) {
+            if let Some(row) = self.document.row(terminal_row as usize + self.offset.y) {
                 self.draw_row(row);
             } else if self.document.is_empty() && terminal_row == height / 3 {
                 self.draw_welcome_message();
