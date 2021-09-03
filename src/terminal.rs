@@ -20,7 +20,7 @@ impl Terminal {
         let size = termion::terminal_size()?;
         let term = Self {
             size: Size {
-                width: size.0 - 1,
+                width: size.0,
                 height: size.1,
             },
             stdout: stdout().into_raw_mode()?,
