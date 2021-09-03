@@ -1,13 +1,10 @@
-use std::env;
-
-use termion::event::Key;
-
 use super::terminal;
 use terminal::Terminal;
 
 use super::document;
 use document::{Document, Row};
 
+use termion::event::Key;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -18,7 +15,6 @@ enum Mode {
     Command,
 }
 
-#[derive(Default)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
@@ -42,22 +38,14 @@ pub struct Editor {
 
 impl Editor {
     pub fn new() -> Self {
-        let args: Vec<String> = env::args().collect();
-        let document = if args.len() >= 2 {
-            let file_name = &args[1];
-            Document::open(file_name)
-        } else {
-            Document::default()
-        };
-
         Self {
             mode: Mode::Normal,
             offset: Position::default(),
             status_bar: "".to_string(),
             should_quit: false,
-            document,
+            document: Document::open(),
             terminal: Terminal::new().expect("Failed to initialize terminal."),
-            cursor_position: Position::default(),
+            cursor_position: Position { x: 0, y: 0 },
         }
     }
 
@@ -212,7 +200,7 @@ impl Editor {
 
             if let Some(row) = self.document.row(terminal_row as usize + self.offset.y) {
                 self.draw_row(row);
-            } else if self.document.is_empty() && terminal_row == height / 3 {
+            } else if terminal_row == height / 3 {
                 self.draw_welcome_message();
             } else {
                 println!("~\r");
