@@ -101,13 +101,9 @@ impl Editor {
         let pressed_key = Terminal::read_key()?;
         match pressed_key {
             Key::Ctrl('q') => self.should_quit = true,
-            Key::Char('j') | Key::Char('k') | Key::Char('l') | Key::Char('h') 
-                | Key::Char('G') | Key::Char('g') | Key::Char('0') | Key::Char('s') => {
-                    self.check_mode(pressed_key)
-                },
             Key::Esc => self.change_mode(Mode::Normal),
             Key::Char('i') => self.change_mode(Mode::Insert),
-            _ => (),
+            _ => self.check_mode(pressed_key)
         }
 
         self.scroll();
@@ -166,8 +162,8 @@ impl Editor {
         // the x pos of the cursor will be set to the width
         // snapping it to the end of the line.
         if x > width {
-            x = width + 1; // <-- `width + 1` not in the guide
-        }
+            x = width; 
+        } 
 
         self.cursor_position = Position { x, y }
     }
@@ -251,6 +247,7 @@ impl Editor {
     }
 
     fn draw_status_bar(&mut self) {
+        // NOTE: This function causes massive issues with horizontal scrolling.
         if self.mode == Mode::Normal {
             self.status_bar = "MODE: NORMAL".to_string();
         } else {
