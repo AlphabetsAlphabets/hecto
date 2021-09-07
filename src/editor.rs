@@ -103,6 +103,7 @@ impl Editor {
             Key::Ctrl('q') => self.should_quit = true,
             Key::Esc => self.change_mode(Mode::Normal),
             Key::Char('i') => self.change_mode(Mode::Insert),
+            Key::Char(':') => todo!("Implement command mode"),
             _ => self.check_mode(pressed_key)
         }
 
@@ -131,13 +132,26 @@ impl Editor {
                 if y < height {
                     y = y.saturating_add(1)
                 }
-            }
+            },
             Key::Char('h') => x = x.saturating_sub(1), 
             Key::Char('l') => {
                 if x < width {
                     x = x.saturating_add(1)
                 }
-            }
+            },
+
+            Key::Char('W') => {
+                if let Some(row) = self.document.row(y) {
+                    if let Some(contents) = row.contents().get(x..) {
+                        for (count, ch) in contents.chars().enumerate() {
+                            if ch == ' ' {
+                                x = x.saturating_add(count + 1);
+                                break;
+                            }
+                        }
+                    }
+                }
+            },
 
             Key::Char('g') => y = 0,
             Key::Char('G') => y = height,
