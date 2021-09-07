@@ -31,6 +31,7 @@ impl Position {
 
 pub struct Editor {
     mode: Mode,
+    // Keeps track of which row the file the user is currently on.
     offset: Position,
     status_bar: String,
     should_quit: bool,
@@ -77,8 +78,15 @@ impl Editor {
                 break;
             } else {
                 self.draw_rows();
-                // self.draw_status_bar();
-                self.terminal.cursor_position(&self.cursor_position);
+                // since scrolling to the left and right is implemented
+                // the cursor needs to retain the current position with 
+                // the addition of the offsets
+                let pos = Position {
+                    x: self.cursor_position.x.saturating_sub(self.offset.x),
+                    y: self.cursor_position.y.saturating_sub(self.offset.y),
+                };
+
+                self.terminal.cursor_position(&pos);
             }
 
             if let Err(error) = self.process_keypress() {
@@ -113,9 +121,13 @@ impl Editor {
     fn normal_mode(&mut self, key: Key) {
         let Position { mut x, mut y } = self.cursor_position;
 
-        let size = self.terminal.size();
-        let width = size.width.saturating_sub(1) as usize;
         let height = self.document.len();
+        // the width changes depending on the length of the row
+        let mut width = if let Some(row) = self.document.row(y) {
+            row.len()
+        } else {
+            0
+        };
 
         match key {
             Key::Char('k') => y = y.saturating_sub(1),
@@ -124,7 +136,7 @@ impl Editor {
                     y = y.saturating_add(1)
                 }
             }
-            Key::Char('h') => x = x.saturating_sub(1), // TODO: Look into the x field in position struct
+            Key::Char('h') => x = x.saturating_sub(1), 
             Key::Char('l') => {
                 if x < width {
                     x = x.saturating_add(1)
@@ -143,6 +155,20 @@ impl Editor {
             _ => (),
         }
 
+        // adjusts the width the the length of the row
+        width = if let Some(row) = self.document.row(y) {
+            row.len()
+        } else {
+            0
+        };
+
+        // if the cursor is further than the width
+        // the x pos of the cursor will be set to the width
+        // snapping it to the end of the line.
+        if x > width {
+            x = width + 1; // <-- `width + 1` not in the guide
+        }
+
         self.cursor_position = Position { x, y }
     }
 
@@ -158,25 +184,6 @@ impl Editor {
             self.normal_mode(key);
         } else {
             self.insert_mode(key);
-        }
-    }
-
-    fn scroll(&mut self) {
-        let Position { x, y } = self.cursor_position;
-        let width = self.terminal.size().width as usize;
-        let height = self.terminal.size().height as usize;
-        let mut offset = &mut self.offset;
-
-        if y < offset.y {
-            offset.y = y;
-        } else if y >= offset.y.saturating_add(height) {
-            offset.y = y.saturating_sub(height).saturating_add(1);
-        }
-
-        if x < offset.x {
-            offset.x = x;
-        } else if x >= offset.x.saturating_add(width) {
-            offset.x = x.saturating_sub(width).saturating_add(1);
         }
     }
 
@@ -204,15 +211,35 @@ impl Editor {
         println!("{}\r", row);
     }
 
+    fn scroll(&mut self) {
+        let Position { x, y } = self.cursor_position;
+        let width = self.terminal.size().width as usize;
+        let height = self.terminal.size().height as usize;
+        let mut offset = &mut self.offset;
+
+        if y < offset.y {
+            offset.y = y;
+        } else if y >= offset.y.saturating_add(height) {
+            offset.y = y.saturating_sub(height).saturating_add(1);
+        }
+
+        if x < offset.x {
+            offset.x = x;
+        } else if x >= offset.x.saturating_add(width) {
+            offset.x = x.saturating_sub(width).saturating_add(1);
+        }
+    }
+
     fn draw_rows(&mut self) {
         let height = self.terminal.size().height;
         for terminal_row in 0..height - 1 {
-            self.terminal.clear_current_line();
             self.terminal.cursor_position(&Position {
                 x: 0,
                 y: terminal_row as _,
             });
+            self.terminal.clear_current_line();
 
+            // index = terminal_row + self.offset.y
             if let Some(row) = self.document.row(terminal_row as usize + self.offset.y) {
                 self.draw_row(row);
             } else if self.document.is_empty() && terminal_row == height / 3 {
