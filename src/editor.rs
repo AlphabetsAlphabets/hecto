@@ -79,7 +79,7 @@ impl Editor {
             } else {
                 self.draw_rows();
                 // since scrolling to the left and right is implemented
-                // the cursor needs to retain the current position with 
+                // the cursor needs to retain the current position with
                 // the addition of the offsets
                 let pos = Position {
                     x: self.cursor_position.x.saturating_sub(self.offset.x),
@@ -104,7 +104,7 @@ impl Editor {
             Key::Esc => self.change_mode(Mode::Normal),
             Key::Char('i') => self.change_mode(Mode::Insert),
             Key::Char(':') => todo!("Implement command mode"),
-            _ => self.check_mode(pressed_key)
+            _ => self.check_mode(pressed_key),
         }
 
         self.scroll();
@@ -132,26 +132,39 @@ impl Editor {
                 if y < height {
                     y = y.saturating_add(1)
                 }
-            },
-            Key::Char('h') => x = x.saturating_sub(1), 
+            }
+            Key::Char('h') => x = x.saturating_sub(1),
             Key::Char('l') => {
                 if x < width {
                     x = x.saturating_add(1)
                 }
-            },
+            }
+
+            Key::Char('B') => {
+                if let Some(row) = self.document.row(y) {
+                    if let Some(contents) = row.contents().get(..x + 1) {
+                        for (count, ch) in contents.chars().enumerate() {
+                            if ch == ' ' && !ch.is_ascii_alphabetic() {
+                                x = x.saturating_sub(count + 1);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
 
             Key::Char('W') => {
                 if let Some(row) = self.document.row(y) {
                     if let Some(contents) = row.contents().get(x..) {
                         for (count, ch) in contents.chars().enumerate() {
-                            if ch == ' ' {
+                            if ch == ' ' && !ch.is_ascii_alphabetic() {
                                 x = x.saturating_add(count + 1);
                                 break;
                             }
                         }
                     }
                 }
-            },
+            }
 
             Key::Char('g') => y = 0,
             Key::Char('G') => y = height,
@@ -176,8 +189,8 @@ impl Editor {
         // the x pos of the cursor will be set to the width
         // snapping it to the end of the line.
         if x > width {
-            x = width; 
-        } 
+            x = width;
+        }
 
         self.cursor_position = Position { x, y }
     }

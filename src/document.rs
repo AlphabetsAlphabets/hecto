@@ -2,12 +2,14 @@ use std::cmp;
 use std::fs;
 
 pub struct Row {
-    pub string: String
+    pub string: String,
 }
 
 impl From<&str> for Row {
     fn from(s: &str) -> Self {
-        Self { string: String::from(s) }
+        Self {
+            string: String::from(s),
+        }
     }
 }
 
