@@ -141,14 +141,17 @@ impl Editor {
             }
 
             Key::Char('B') => {
+                let mut count = 0;
+
                 if let Some(row) = self.document.row(y) {
                     if let Some(contents) = row.contents().get(..x + 1) {
-                        for (count, ch) in contents.chars().enumerate() {
-                            if ch == ' ' && !ch.is_ascii_alphabetic() {
-                                x = x.saturating_sub(count + 1);
-                                break;
+                        for ch in contents.chars() {
+                            if !ch.is_ascii_alphabetic() {
+                                count += 1;
                             }
                         }
+
+                        x = x.saturating_sub(count);
                     }
                 }
             }
