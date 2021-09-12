@@ -33,7 +33,6 @@ pub struct Editor {
     mode: Mode,
     // Keeps track of which row the file the user is currently on.
     offset: Position,
-    status_bar: String,
     should_quit: bool,
     document: Document,
     terminal: Terminal,
@@ -53,7 +52,6 @@ impl Editor {
         Self {
             mode: Mode::Normal,
             offset: Position::default(),
-            status_bar: "".to_string(),
             should_quit: false,
             document,
             terminal: Terminal::new().expect("Failed to initialize terminal."),
@@ -80,7 +78,10 @@ impl Editor {
                 self.draw_rows();
                 // since scrolling to the left and right is implemented
                 // the cursor needs to retain the current position with
-                // the addition of the offsets
+                // as the cursor pos is added with the offset values
+                // so to place the cursor in the right position
+                // the value for the offsets needs to be subtracted from 
+                // the cursor's position.
                 let pos = Position {
                     x: self.cursor_position.x.saturating_sub(self.offset.x),
                     y: self.cursor_position.y.saturating_sub(self.offset.y),
@@ -116,6 +117,7 @@ impl Editor {
     }
 
     fn normal_mode(&mut self, key: Key) {
+        let terminal_height = self.terminal.size().height as usize;
         let Position { mut x, mut y } = self.cursor_position;
 
         let height = self.document.len();
@@ -133,14 +135,30 @@ impl Editor {
                     y = y.saturating_add(1)
                 }
             }
-            Key::Char('h') => x = x.saturating_sub(1),
+            Key::Char('h') => {
+                // lets the user move to the end of the previous line,
+                // if cursor at the start of a line.
+                if x > 0 {
+                    x -= 1;
+                } else if y > 0 {
+                    y -= 1;
+                    if let Some(row) = self.document.row(y) {
+                        x = row.len();
+                    } else {
+                        x = 0;
+                    }
+                }
+            },
             Key::Char('l') => {
                 if x < width {
-                    x = x.saturating_add(1)
+                    x += 1;
+                } else if y < height {
+                    y += 1;
+                    x = 0;
                 }
             }
 
-            Key::Char('B') => {
+            Key::Char('b') => {
                 let mut count = 0;
 
                 if let Some(row) = self.document.row(y) {
@@ -154,9 +172,9 @@ impl Editor {
                         x = x.saturating_sub(count);
                     }
                 }
-            }
+            },
 
-            Key::Char('W') => {
+            Key::Char('w') => {
                 if let Some(row) = self.document.row(y) {
                     if let Some(contents) = row.contents().get(x..) {
                         for (count, ch) in contents.chars().enumerate() {
@@ -167,11 +185,31 @@ impl Editor {
                         }
                     }
                 }
-            }
+            },
+
+            Key::Char('K') => {
+                // first if only happens on the 1st screen.
+                y = if y > terminal_height {
+                    // saturating_add/sub not used because y and terminal_height
+                    // have the same type.
+                    y - terminal_height
+                } else {
+                    0 
+                }
+            },
+            Key::Char('J') => {
+                // terminal_height is the number of visible rows on the screen.
+                // height is the number of rows in the entire file 
+                y = if y.saturating_add(terminal_height) < height {
+                    y + terminal_height as usize 
+                } else {
+                    // This is only true when it's at the last page 
+                    height
+                }
+            },
 
             Key::Char('g') => y = 0,
-            Key::Char('G') => y = height,
-            Key::Char('0') => x = 0,
+            Key::Char('S') => x = 0,
             Key::Char('s') => x = width,
 
             Key::Char(':') => todo!("Implement command mode."),
@@ -274,15 +312,5 @@ impl Editor {
                 println!("~\r");
             }
         }
-    }
-
-    fn draw_status_bar(&mut self) {
-        // NOTE: This function causes massive issues with horizontal scrolling.
-        if self.mode == Mode::Normal {
-            self.status_bar = "MODE: NORMAL".to_string();
-        } else {
-            self.status_bar = "MODE: INSERT".to_string();
-        }
-        println!("{}", self.status_bar);
     }
 }
