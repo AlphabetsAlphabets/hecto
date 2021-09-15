@@ -80,7 +80,7 @@ impl Editor {
                 // the cursor needs to retain the current position with
                 // as the cursor pos is added with the offset values
                 // so to place the cursor in the right position
-                // the value for the offsets needs to be subtracted from 
+                // the value for the offsets needs to be subtracted from
                 // the cursor's position.
                 let pos = Position {
                     x: self.cursor_position.x.saturating_sub(self.offset.x),
@@ -148,7 +148,7 @@ impl Editor {
                         x = 0;
                     }
                 }
-            },
+            }
             Key::Char('l') => {
                 if x < width {
                     x += 1;
@@ -159,30 +159,27 @@ impl Editor {
             }
 
             Key::Char('b') => {
-                let mut count = 0;
-
                 if let Some(row) = self.document.row(y) {
-                    if let Some(contents) = row.contents().get(..x + 1) {
-                        for ch in contents.chars() {
+                    if let Some(contents) = row.contents().get(..x) {
+                        let length = contents.len();
+                        let mut index = 0;
+                        for (count, ch) in contents.chars().rev().enumerate() {
                             if !ch.is_ascii_alphabetic() {
-                                count += 1;
+                                index = count + 1;
+                                break;
                             }
                         }
 
-                        if x > 0 {
-                            x = x.saturating_sub(count);
-                        } else if y > 0 {
+                        if (y < height && x == 0) && y > 0 {
                             y -= 1;
-                            if let Some(row) = self.document.row(y) {
-                                x = row.len();
-                            } else {
-                                x = 0;
-                            }
+                            x = row.len();
+                        } else {
+                            x = x.saturating_sub(index);
                         }
 
                     }
                 }
-            },
+            }
 
             Key::Char('w') => {
                 if let Some(row) = self.document.row(y) {
@@ -195,7 +192,7 @@ impl Editor {
                         }
                     }
                 }
-            },
+            }
 
             Key::Char('K') => {
                 // first if only happens on the 1st screen.
@@ -204,19 +201,19 @@ impl Editor {
                     // have the same type.
                     y - terminal_height
                 } else {
-                    0 
+                    0
                 }
-            },
+            }
             Key::Char('J') => {
                 // terminal_height is the number of visible rows on the screen.
-                // height is the number of rows in the entire file 
+                // height is the number of rows in the entire file
                 y = if y.saturating_add(terminal_height) < height {
-                    y + terminal_height as usize 
+                    y + terminal_height as usize
                 } else {
-                    // This is only true when it's at the last page 
+                    // This is only true when it's at the last page
                     height
                 }
-            },
+            }
 
             Key::Char('g') => y = 0,
             Key::Char('S') => x = 0,
