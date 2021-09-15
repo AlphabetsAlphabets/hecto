@@ -169,7 +169,17 @@ impl Editor {
                             }
                         }
 
-                        x = x.saturating_sub(count);
+                        if x > 0 {
+                            x = x.saturating_sub(count);
+                        } else if y > 0 {
+                            y -= 1;
+                            if let Some(row) = self.document.row(y) {
+                                x = row.len();
+                            } else {
+                                x = 0;
+                            }
+                        }
+
                     }
                 }
             },
@@ -178,7 +188,7 @@ impl Editor {
                 if let Some(row) = self.document.row(y) {
                     if let Some(contents) = row.contents().get(x..) {
                         for (count, ch) in contents.chars().enumerate() {
-                            if ch == ' ' && !ch.is_ascii_alphabetic() {
+                            if !ch.is_ascii_alphabetic() {
                                 x = x.saturating_add(count + 1);
                                 break;
                             }
