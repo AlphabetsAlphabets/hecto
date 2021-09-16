@@ -30,8 +30,11 @@ impl Position {
 }
 
 pub struct Editor {
+    // Editing
     mode: Mode,
-    // Keeps track of which row the file the user is currently on.
+    file_name: String,
+    // Editor
+    /// Keeps track of which row the file the user is currently on.
     offset: Position,
     should_quit: bool,
     document: Document,
@@ -42,8 +45,9 @@ pub struct Editor {
 impl Editor {
     pub fn new() -> Self {
         let args: Vec<String> = env::args().collect();
+        let mut file_name = "";
         let document = if args.len() > 1 {
-            let file_name = &args[1];
+            file_name = &args[1];
             Document::open(&file_name).unwrap_or_default()
         } else {
             Document::default()
@@ -52,6 +56,7 @@ impl Editor {
         Self {
             mode: Mode::Normal,
             offset: Position::default(),
+            file_name: file_name.to_string(),
             should_quit: false,
             document,
             terminal: Terminal::new().expect("Failed to initialize terminal."),
@@ -249,6 +254,12 @@ impl Editor {
             x = width;
         }
 
+        // NOTE: This prevents scrolling.
+        // let screen_height = self.terminal.size().height as usize;
+        // if y >= screen_height - 2 {
+        //     y = screen_height - 3;
+        // } 
+
         self.cursor_position = Position { x, y }
     }
 
@@ -310,6 +321,14 @@ impl Editor {
         }
     }
 
+    fn draw_status_bar(&mut self) {
+        if self.mode == Mode::Normal {
+            println!("MODE: NORMAL | {}", self.file_name);
+        } else if self.mode == Mode::Insert {
+            println!("MODE: INSERT | {}", self.file_name);
+        }
+    }
+
     fn draw_rows(&mut self) {
         let height = self.terminal.size().height;
         for terminal_row in 0..height - 1 {
@@ -327,6 +346,8 @@ impl Editor {
             } else {
                 println!("~\r");
             }
+
+            self.draw_status_bar();
         }
     }
 }
