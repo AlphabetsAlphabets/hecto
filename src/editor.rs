@@ -163,6 +163,7 @@ impl Editor {
                     if let Some(contents) = row.contents().get(..x) {
                         let length = contents.len();
                         let mut index = 0;
+
                         for (count, ch) in contents.chars().rev().enumerate() {
                             if !ch.is_ascii_alphabetic() {
                                 index = count + 1;
@@ -176,7 +177,6 @@ impl Editor {
                         } else {
                             x = x.saturating_sub(index);
                         }
-
                     }
                 }
             }
@@ -184,12 +184,21 @@ impl Editor {
             Key::Char('w') => {
                 if let Some(row) = self.document.row(y) {
                     if let Some(contents) = row.contents().get(x..) {
+                        let mut index = 0;
                         for (count, ch) in contents.chars().enumerate() {
                             if !ch.is_ascii_alphabetic() {
-                                x = x.saturating_add(count + 1);
+                                index = count;
                                 break;
                             }
                         }
+
+                        if x >= width && y < height {
+                            y += 1;
+                            x = 0;
+                        } else {
+                            x = x.saturating_add(index + 1);
+                        }
+
                     }
                 }
             }
@@ -321,3 +330,4 @@ impl Editor {
         }
     }
 }
+
