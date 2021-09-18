@@ -1,3 +1,4 @@
+use super::modes::Mode;
 use super::terminal;
 use terminal::Terminal;
 
@@ -7,15 +8,11 @@ use super::document;
 use document::{Document, Row};
 
 use termion::event::Key;
+use termion::color::{Fg, Bg, White, Black, Reset, Rgb};
 
+const STATUS_FG_COLOUR: Rgb = Rgb(63, 63, 63);
+const STATUS_BAR_BG_COLOUR: Rgb = Rgb(239, 239, 239);
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-#[derive(PartialEq)]
-enum Mode {
-    Insert,
-    Normal,
-    Command,
-}
 
 #[derive(Default)]
 pub struct Position {
@@ -81,6 +78,8 @@ impl Editor {
                 break;
             } else {
                 self.draw_rows();
+                self.draw_status_bar();
+                self.draw_message_bar();
                 // since scrolling to the left and right is implemented
                 // the cursor needs to retain the current position with
                 // as the cursor pos is added with the offset values
@@ -322,16 +321,23 @@ impl Editor {
     }
 
     fn draw_status_bar(&mut self) {
-        if self.mode == Mode::Normal {
-            println!("MODE: NORMAL | {}", self.file_name);
-        } else if self.mode == Mode::Insert {
-            println!("MODE: INSERT | {}", self.file_name);
-        }
+        let status = format!("{} | {}", self.mode, self.file_name);
+        let spaces = " ".repeat(self.terminal.size().width as usize - status.len());
+
+        self.terminal.set_bg_color(STATUS_BAR_BG_COLOUR);
+        self.terminal.set_fg_color(STATUS_FG_COLOUR);
+        println!("{}{}\r", status, spaces);
+        self.terminal.reset_fg_color();
+        self.terminal.reset_bg_color();
+    }
+
+    fn draw_message_bar(&mut self) {
+        self.terminal.clear_current_line();
     }
 
     fn draw_rows(&mut self) {
         let height = self.terminal.size().height;
-        for terminal_row in 0..height - 1 {
+        for terminal_row in 0..height {
             self.terminal.cursor_position(&Position {
                 x: 0,
                 y: terminal_row as _,
@@ -346,8 +352,6 @@ impl Editor {
             } else {
                 println!("~\r");
             }
-
-            self.draw_status_bar();
         }
     }
 }

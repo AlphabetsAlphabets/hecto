@@ -2,6 +2,7 @@ use std::io::{self, stdout, Write};
 
 use super::editor::Position;
 
+use termion::color;
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::{IntoRawMode, RawTerminal};
@@ -10,6 +11,7 @@ pub struct Size {
     pub width: u16,
     pub height: u16,
 }
+
 pub struct Terminal {
     size: Size,
     stdout: RawTerminal<std::io::Stdout>,
@@ -21,7 +23,7 @@ impl Terminal {
         let term = Self {
             size: Size {
                 width: size.0,
-                height: size.1,
+                height: size.1.saturating_sub(2),
             },
             stdout: stdout().into_raw_mode()?,
         };
@@ -59,5 +61,25 @@ impl Terminal {
                 return key;
             }
         }
+    }
+
+    pub fn set_bg_color(&mut self, color: color::Rgb) {
+        print!("{}", color::Bg(color));
+        self.stdout.flush().unwrap();
+    }
+
+    pub fn set_fg_color(&mut self, color: color::Rgb) {
+        print!("{}", color::Fg(color));
+        self.stdout.flush().unwrap();
+    }
+
+    pub fn reset_fg_color(&mut self) {
+        print!("{}", color::Fg(color::Reset));
+        self.stdout.flush().unwrap()
+    }
+
+    pub fn reset_bg_color(&mut self) {
+        print!("{}", color::Bg(color::Reset));
+        self.stdout.flush().unwrap()
     }
 }
