@@ -8,7 +8,7 @@ use super::document;
 use document::{Document, Row};
 
 use termion::event::Key;
-use termion::color::{Fg, Bg, White, Black, Reset, Rgb};
+use termion::color::Rgb;
 
 const STATUS_FG_COLOUR: Rgb = Rgb(63, 63, 63);
 const STATUS_BAR_BG_COLOUR: Rgb = Rgb(239, 239, 239);
@@ -42,7 +42,7 @@ pub struct Editor {
 impl Editor {
     pub fn new() -> Self {
         let args: Vec<String> = env::args().collect();
-        let mut file_name = "";
+        let mut file_name: &str;
         let document = if args.len() > 1 {
             file_name = &args[1];
             Document::open(&file_name).unwrap_or_default()
@@ -63,14 +63,14 @@ impl Editor {
     }
 
     pub fn refresh_screen(&mut self) -> Result<(), std::io::Error> {
-        self.terminal.cursor_position(&Position::new(0, 0));
+        self.terminal.set_cursor_position(&Position::new(0, 0));
         Ok(())
     }
 
     pub fn run(&mut self) {
         if let Err(error) = self.refresh_screen() {
             self.terminal.clear_screen();
-            panic!(error);
+            eprintln!("{}", error);
         };
 
         loop {
@@ -92,7 +92,7 @@ impl Editor {
                     y: self.cursor_position.y.saturating_sub(self.offset.y),
                 };
 
-                self.terminal.cursor_position(&pos);
+                self.terminal.set_cursor_position(&pos);
             }
 
             if let Err(error) = self.process_keypress() {
@@ -102,8 +102,6 @@ impl Editor {
     }
 
     fn process_keypress(&mut self) -> Result<(), std::io::Error> {
-        let Position { mut x, mut y } = self.cursor_position;
-
         let pressed_key = Terminal::read_key()?;
         match pressed_key {
             Key::Ctrl('q') => self.should_quit = true,
@@ -166,7 +164,6 @@ impl Editor {
             Key::Char('b') => {
                 if let Some(row) = self.document.row(y) {
                     if let Some(contents) = row.contents().get(..x) {
-                        let length = contents.len();
                         let mut index = 0;
 
                         for (count, ch) in contents.chars().rev().enumerate() {
@@ -351,7 +348,7 @@ impl Editor {
     fn draw_rows(&mut self) {
         let height = self.terminal.size().height;
         for terminal_row in 0..height {
-            self.terminal.cursor_position(&Position {
+            self.terminal.set_cursor_position(&Position {
                 x: 0,
                 y: terminal_row as _,
             });

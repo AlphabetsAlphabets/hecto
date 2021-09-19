@@ -16,6 +16,7 @@ pub struct Terminal {
     size: Size,
     stdout: RawTerminal<std::io::Stdout>,
 }
+
 impl Terminal {
     pub fn new() -> Result<Self, std::io::Error> {
         let size = termion::terminal_size()?;
@@ -40,9 +41,9 @@ impl Terminal {
         self.stdout.flush().unwrap();
     }
 
-    pub fn cursor_position(&mut self, pos: &Position) {
+    pub fn set_cursor_position(&mut self, pos: &Position) {
         // using `saturating_add` prevents the buffer from overflowing.
-        let Position { mut x, mut y } = pos;
+        let Position { x, y } = pos;
         let x = x.saturating_add(1) as u16;
         let y = y.saturating_add(1) as u16;
 
