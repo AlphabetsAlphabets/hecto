@@ -16,7 +16,6 @@ pub struct Terminal {
     size: Size,
     stdout: RawTerminal<std::io::Stdout>,
 }
-
 impl Terminal {
     pub fn new() -> Result<Self, std::io::Error> {
         let size = termion::terminal_size()?;

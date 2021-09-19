@@ -47,6 +47,7 @@ impl Editor {
             file_name = &args[1];
             Document::open(&file_name).unwrap_or_default()
         } else {
+            file_name = "[NO FILE OPENED]";
             Document::default()
         };
 
@@ -135,7 +136,7 @@ impl Editor {
         match key {
             Key::Char('k') => y = y.saturating_sub(1),
             Key::Char('j') => {
-                if y < height {
+                if y < height - 1 {
                     y = y.saturating_add(1)
                 }
             }
@@ -220,11 +221,11 @@ impl Editor {
             Key::Char('J') => {
                 // terminal_height is the number of visible rows on the screen.
                 // height is the number of rows in the entire file
-                y = if y.saturating_add(terminal_height) < height {
+                y = if y.saturating_add(terminal_height) < height - 1 {
                     y + terminal_height as usize
                 } else {
                     // This is only true when it's at the last page
-                    height
+                    height - 1
                 }
             }
 
@@ -252,12 +253,6 @@ impl Editor {
         if x > width {
             x = width;
         }
-
-        // NOTE: This prevents scrolling.
-        // let screen_height = self.terminal.size().height as usize;
-        // if y >= screen_height - 2 {
-        //     y = screen_height - 3;
-        // } 
 
         self.cursor_position = Position { x, y }
     }
@@ -321,12 +316,30 @@ impl Editor {
     }
 
     fn draw_status_bar(&mut self) {
-        let status = format!("{} | {}", self.mode, self.file_name);
-        let spaces = " ".repeat(self.terminal.size().width as usize - status.len());
+        let width = self.terminal.size().width as usize;
+        let filename = if let Some(filename) = self.file_name.get(..21) {
+            filename.to_string()
+        } else {
+            self.file_name.clone()
+        };
+
+        let status = format!("{} | {}", self.mode, filename);
+
+        let rows = self.document.len() as f32;
+        let current_line = (self.cursor_position.y + 1) as f32;
+
+        let percentage = if rows > 0.0 {
+            (current_line / rows * 100.0).trunc()
+        } else {
+            0 as f32
+        };
+
+        let line_number = format!("{}/{}: {}%", current_line, rows, percentage);
+        let spaces = " ".repeat(width - status.len() - line_number.len());
 
         self.terminal.set_bg_color(STATUS_BAR_BG_COLOUR);
         self.terminal.set_fg_color(STATUS_FG_COLOUR);
-        println!("{}{}\r", status, spaces);
+        println!("{}{}{}\r", status, spaces, line_number);
         self.terminal.reset_fg_color();
         self.terminal.reset_bg_color();
     }
@@ -344,7 +357,7 @@ impl Editor {
             });
             self.terminal.clear_current_line();
 
-            // index = terminal_row + self.offset.y
+            // NOTE: index = terminal_row + self.offset.y
             if let Some(row) = self.document.row(terminal_row as usize + self.offset.y) {
                 self.draw_row(row);
             } else if self.document.is_empty() && terminal_row == height / 3 {
@@ -355,4 +368,3 @@ impl Editor {
         }
     }
 }
-
