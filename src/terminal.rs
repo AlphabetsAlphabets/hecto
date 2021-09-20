@@ -37,7 +37,7 @@ impl Terminal {
     }
 
     pub fn clear_current_line(&mut self) {
-        write!(self.stdout, "{}", termion::clear::CurrentLine);
+        write!(self.stdout, "{}", termion::clear::CurrentLine).unwrap();
         self.stdout.flush().unwrap();
     }
 
@@ -47,7 +47,7 @@ impl Terminal {
         let x = x.saturating_add(1) as u16;
         let y = y.saturating_add(1) as u16;
 
-        write!(self.stdout, "{}", termion::cursor::Goto(x, y));
+        write!(self.stdout, "{}", termion::cursor::Goto(x, y)).unwrap();
         self.stdout.flush().unwrap();
     }
 

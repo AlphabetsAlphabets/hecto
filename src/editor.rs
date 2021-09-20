@@ -42,7 +42,7 @@ pub struct Editor {
 impl Editor {
     pub fn new() -> Self {
         let args: Vec<String> = env::args().collect();
-        let mut file_name: &str;
+        let file_name: &str;
         let document = if args.len() > 1 {
             file_name = &args[1];
             Document::open(&file_name).unwrap_or_default()
@@ -96,7 +96,7 @@ impl Editor {
             }
 
             if let Err(error) = self.process_keypress() {
-                panic!(error);
+                eprintln!("{}", error);
             };
         }
     }

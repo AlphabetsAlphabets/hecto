@@ -7,13 +7,18 @@ use super::editor::Position;
 #[derive(Default)]
 pub struct Row {
     pub string: String,
+    len: usize,
 }
 
 impl From<&str> for Row {
     fn from(s: &str) -> Self {
-        Self {
+        let mut row = Self {
             string: String::from(s),
-        }
+            len: 0,
+        };
+
+        row.update_len();
+        row
     }
 }
 
@@ -21,7 +26,22 @@ impl Row {
     pub fn render(&self, start: usize, end: usize) -> String {
         let end = cmp::min(end, self.string.len());
         let start = cmp::min(start, end);
-        self.string.get(start..end).unwrap_or_default().to_string()
+        let mut result = String::new();
+
+        for grapheme in self.string[..].graphemes(true).skip(start).take(end - start) {
+            // Change tabs to spaces
+            if grapheme == "\t" {
+                result.push_str(" ");
+            } else {
+                result.push_str(grapheme);
+            }
+        }
+
+        result
+    }
+
+    fn update_len(&mut self) {
+        self.len = self.string[..].graphemes(true).count();
     }
 
     pub fn contents(&self) -> String {
@@ -29,7 +49,7 @@ impl Row {
     }
 
     pub fn len(&self) -> usize {
-        self.string.len()
+        self.len
     }
 }
 
