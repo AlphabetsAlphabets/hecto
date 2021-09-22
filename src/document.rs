@@ -4,6 +4,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use super::editor::Position;
 
+
 #[derive(Default)]
 pub struct Row {
     pub string: String,

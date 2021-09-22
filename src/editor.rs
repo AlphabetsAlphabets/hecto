@@ -164,14 +164,11 @@ impl Editor {
             Key::Char('b') => {
                 if let Some(row) = self.document.row(y) {
                     if let Some(contents) = row.contents().get(..x) {
-                        let mut index = 0;
-
-                        for (count, ch) in contents.chars().rev().enumerate() {
-                            if !ch.is_ascii_alphabetic() {
-                                index = count + 1;
-                                break;
-                            }
-                        }
+                        let index = if let Some(index) = contents.rfind(|c: char| !c.is_ascii_alphabetic()) {
+                            index
+                        } else {
+                            self.cursor_position.x
+                        };
 
                         if (y < height && x == 0) && y > 0 {
                             y -= 1;
