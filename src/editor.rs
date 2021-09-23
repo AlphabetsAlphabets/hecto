@@ -3,6 +3,8 @@ use super::terminal;
 use terminal::Terminal;
 
 use std::env;
+use std::time::Duration;
+use std::time::Instant;
 
 use super::document;
 use document::{Document, Row};
@@ -13,6 +15,20 @@ use termion::color::Rgb;
 const STATUS_FG_COLOUR: Rgb = Rgb(63, 63, 63);
 const STATUS_BAR_BG_COLOUR: Rgb = Rgb(239, 239, 239);
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+struct StatusMessage {
+    text: String,
+    time: Instant,
+}
+
+impl StatusMessage {
+    fn from(message: String) -> Self {
+        Self {
+            time: Instant::now(),
+            text: message,
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct Position {
@@ -27,38 +43,43 @@ impl Position {
 }
 
 pub struct Editor {
-    // Editing
     mode: Mode,
-    file_name: String,
-    // Editor
-    /// Keeps track of which row the file the user is currently on.
     offset: Position,
-    should_quit: bool,
     document: Document,
     terminal: Terminal,
     cursor_position: Position,
+    should_quit: bool,
+    status_message: StatusMessage,
 }
 
 impl Editor {
     pub fn new() -> Self {
         let args: Vec<String> = env::args().collect();
-        let file_name: &str;
+        let mut initial_status = "Press CTRL + Q to QUIT.".to_string();
         let document = if args.len() > 1 {
-            file_name = &args[1];
-            Document::open(&file_name).unwrap_or_default()
+            let mut doc = Document::open(&args[1]);
+            if doc.is_ok() {
+                doc.unwrap()
+            } else {
+                let mut doc = Document::default();
+                initial_status = format!("ERR: Could not open file: {}", doc.filename);
+                doc.filename = "[ERROR COULD NOT OPEN FILE]".to_string();
+                doc
+            }
         } else {
-            file_name = "[NO FILE OPENED]";
-            Document::default()
+            let mut doc = Document::default();
+            doc.filename = "[NO FILE OPENED]".to_string();
+            doc
         };
 
         Self {
             mode: Mode::Normal,
             offset: Position::default(),
-            file_name: file_name.to_string(),
             should_quit: false,
             document,
             terminal: Terminal::new().expect("Failed to initialize terminal."),
             cursor_position: Position { x: 0, y: 0 },
+            status_message: StatusMessage::from(initial_status)
         }
     }
 
@@ -134,7 +155,7 @@ impl Editor {
         match key {
             Key::Char('k') => y = y.saturating_sub(1),
             Key::Char('j') => {
-                if y < height - 1 {
+                if y < height.saturating_sub(1) {
                     y = y.saturating_add(1)
                 }
             }
@@ -164,15 +185,18 @@ impl Editor {
             Key::Char('b') => {
                 if let Some(row) = self.document.row(y) {
                     if let Some(contents) = row.contents().get(..x) {
-                        let index = if let Some(index) = contents.rfind(|c: char| !c.is_ascii_alphabetic()) {
-                            index
-                        } else {
-                            self.cursor_position.x
-                        };
+                        let mut index = 0;
+
+                        for (count, ch) in contents.chars().rev().enumerate() {
+                            if !ch.is_ascii_alphabetic() {
+                                index = count + 1;
+                                break;
+                            }
+                        }
 
                         if (y < height && x == 0) && y > 0 {
                             y -= 1;
-                            x = row.len();
+                            x = row.len() + 2;
                         } else {
                             x = x.saturating_sub(index);
                         }
@@ -215,11 +239,11 @@ impl Editor {
             Key::Char('J') => {
                 // terminal_height is the number of visible rows on the screen.
                 // height is the number of rows in the entire file
-                y = if y.saturating_add(terminal_height) < height - 1 {
+                y = if y.saturating_add(terminal_height) < height.saturating_sub(1) {
                     y + terminal_height as usize
                 } else {
                     // This is only true when it's at the last page
-                    height - 1
+                    height.saturating_sub(1)
                 }
             }
 
@@ -311,10 +335,10 @@ impl Editor {
 
     fn draw_status_bar(&mut self) {
         let width = self.terminal.size().width as usize;
-        let filename = if let Some(filename) = self.file_name.get(..21) {
+        let filename = if let Some(filename) = self.document.filename.get(..21) {
             filename.to_string()
         } else {
-            self.file_name.clone()
+            self.document.filename.clone()
         };
 
         let status = format!("{} | {}", self.mode, filename);
@@ -340,6 +364,12 @@ impl Editor {
 
     fn draw_message_bar(&mut self) {
         self.terminal.clear_current_line();
+        let message = &self.status_message;
+        if Instant::now() - message.time < Duration::new(5, 0) {
+            let mut text = message.text.clone();
+            text.truncate(self.terminal.size().width as usize);
+            print!("{}", text);
+        }
     }
 
     fn draw_rows(&mut self) {

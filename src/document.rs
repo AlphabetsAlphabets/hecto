@@ -57,6 +57,7 @@ impl Row {
 #[derive(Default)]
 pub struct Document {
     pub rows: Vec<Row>,
+    pub filename: String,
 }
 
 impl Document {
@@ -67,7 +68,11 @@ impl Document {
             rows.push(Row::from(value.trim_end()));
         }
 
-        let rows = Self { rows };
+        let rows = Self {
+            rows,
+            filename: filename.to_string()
+        };
+
         Ok(rows)
     }
 
