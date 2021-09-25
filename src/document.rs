@@ -1,9 +1,9 @@
 use std::cmp;
 use std::fs;
+use std::iter::FromIterator;
 use unicode_segmentation::UnicodeSegmentation;
 
 use super::editor::Position;
-
 
 #[derive(Default)]
 pub struct Row {
@@ -29,7 +29,11 @@ impl Row {
         let start = cmp::min(start, end);
         let mut result = String::new();
 
-        for grapheme in self.string[..].graphemes(true).skip(start).take(end - start) {
+        for grapheme in self.string[..]
+            .graphemes(true)
+            .skip(start)
+            .take(end - start)
+        {
             // Change tabs to spaces
             if grapheme == "\t" {
                 result.push_str(" ");
@@ -39,6 +43,19 @@ impl Row {
         }
 
         result
+    }
+
+    pub fn insert(&mut self, at: usize, c: char) {
+        if at >= self.len {
+            self.string.push(c);
+        } else {
+            let mut result: String = self.string[..].graphemes(true).take(at).collect();
+            let remainder: String = self.string[..].graphemes(true).skip(at).collect();
+            result.push(c);
+            result.push_str(&remainder);
+            self.string = result;
+        }
+        self.update_len();
     }
 
     fn update_len(&mut self) {
@@ -66,18 +83,27 @@ impl Document {
 
         let rows = Self {
             rows,
-            filename: filename.to_string()
+            filename: filename.to_string(),
         };
 
         Ok(rows)
     }
 
-    pub fn insert(&mut self,  c: char, at: &Position) {
-        if let Some(current_line) = self.rows.get_mut(at.y) {
-            let mut text: String = current_line.string.split_word_bounds().collect();
-            text.push_str(&c.to_string());
-            current_line.string = text;
-            current_line.len += 1;
+    pub fn insert(&mut self, c: char, at: &Position) {
+        if at.y < self.len() {
+            let row = self.rows.get_mut(at.y).unwrap();
+            row.insert(at.x, c);
+        }
+    }
+
+    pub fn enter(&mut self, y: usize) {
+        let mut row = Row::default();
+        if y == self.rows.len() {
+            self.rows.push(row);
+        } else {
+            let start = self.rows.iter().take(y);
+            let remainder = self.rows.iter().skip(y);
+            todo!("Enter key not done properly");
         }
     }
 

@@ -9,8 +9,8 @@ use std::time::Instant;
 use super::document;
 use document::{Document, Row};
 
-use termion::event::Key;
 use termion::color::Rgb;
+use termion::event::Key;
 
 const STATUS_FG_COLOUR: Rgb = Rgb(63, 63, 63);
 const STATUS_BAR_BG_COLOUR: Rgb = Rgb(239, 239, 239);
@@ -79,7 +79,7 @@ impl Editor {
             document,
             terminal: Terminal::new().expect("Failed to initialize terminal."),
             cursor_position: Position { x: 0, y: 0 },
-            status_message: StatusMessage::from(initial_status)
+            status_message: StatusMessage::from(initial_status),
         }
     }
 
@@ -127,7 +127,13 @@ impl Editor {
         match pressed_key {
             Key::Ctrl('q') => self.should_quit = true,
             Key::Esc => self.change_mode(Mode::Normal),
-            Key::Char('i') => self.change_mode(Mode::Insert),
+            Key::Char('i') => {
+                if self.mode == Mode::Insert {
+                    self.insert_mode(pressed_key)
+                } else {
+                    self.change_mode(Mode::Insert)
+                }
+            }
             Key::Char(':') => todo!("Implement command mode"),
             _ => self.check_mode(pressed_key),
         }
@@ -176,7 +182,7 @@ impl Editor {
             Key::Char('l') => {
                 if x < width {
                     x += 1;
-                } else if y < height {
+                } else if y < height.saturating_sub(1) {
                     y += 1;
                     x = 0;
                 }
@@ -215,13 +221,12 @@ impl Editor {
                             }
                         }
 
-                        if x >= width && y < height {
+                        if x >= width && y < height.saturating_sub(1) {
                             y += 1;
                             x = 0;
                         } else {
                             x = x.saturating_add(index + 1);
                         }
-
                     }
                 }
             }
@@ -255,6 +260,11 @@ impl Editor {
 
             // changing modes
             Key::Char('i') => self.change_mode(Mode::Insert),
+            Key::Char('A') => {
+                let row = self.document.row(y).unwrap();
+                x = row.len;
+                self.change_mode(Mode::Insert);
+            }
             _ => (),
         }
 
@@ -276,9 +286,19 @@ impl Editor {
     }
 
     fn insert_mode(&mut self, key: Key) {
+        let Position { mut x, mut y } = self.cursor_position;
         match key {
             Key::Esc => self.change_mode(Mode::Command),
-            Key::Char(c) => self.document.insert(c, &self.cursor_position),
+            Key::Backspace => todo!("Backspace not implemented yet"),
+            Key::Char(c) => {
+                if c == '\n' {
+                    self.document.enter(y);
+                    self.normal_mode(Key::Char('j'));
+                } 
+
+                self.document.insert(c, &self.cursor_position);
+                self.normal_mode(Key::Char('l'));
+            },
             _ => (),
         }
     }
