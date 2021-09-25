@@ -8,7 +8,7 @@ use super::editor::Position;
 #[derive(Default)]
 pub struct Row {
     pub string: String,
-    len: usize,
+    pub len: usize,
 }
 
 impl From<&str> for Row {
@@ -48,10 +48,6 @@ impl Row {
     pub fn contents(&self) -> String {
         self.string.clone()
     }
-
-    pub fn len(&self) -> usize {
-        self.len
-    }
 }
 
 #[derive(Default)]
@@ -74,6 +70,15 @@ impl Document {
         };
 
         Ok(rows)
+    }
+
+    pub fn insert(&mut self,  c: char, at: &Position) {
+        if let Some(current_line) = self.rows.get_mut(at.y) {
+            let mut text: String = current_line.string.split_word_bounds().collect();
+            text.push_str(&c.to_string());
+            current_line.string = text;
+            current_line.len += 1;
+        }
     }
 
     pub fn is_empty(&self) -> bool {

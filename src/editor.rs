@@ -57,7 +57,7 @@ impl Editor {
         let args: Vec<String> = env::args().collect();
         let mut initial_status = "Press CTRL + Q to QUIT.".to_string();
         let document = if args.len() > 1 {
-            let mut doc = Document::open(&args[1]);
+            let doc = Document::open(&args[1]);
             if doc.is_ok() {
                 doc.unwrap()
             } else {
@@ -147,7 +147,7 @@ impl Editor {
         let height = self.document.len();
         // the width changes depending on the length of the row
         let mut width = if let Some(row) = self.document.row(y) {
-            row.len()
+            row.len
         } else {
             0
         };
@@ -167,7 +167,7 @@ impl Editor {
                 } else if y > 0 {
                     y -= 1;
                     if let Some(row) = self.document.row(y) {
-                        x = row.len();
+                        x = row.len;
                     } else {
                         x = 0;
                     }
@@ -196,7 +196,7 @@ impl Editor {
 
                         if (y < height && x == 0) && y > 0 {
                             y -= 1;
-                            x = row.len() + 2;
+                            x = row.len + 2;
                         } else {
                             x = x.saturating_sub(index);
                         }
@@ -260,7 +260,7 @@ impl Editor {
 
         // adjusts the width the the length of the row
         width = if let Some(row) = self.document.row(y) {
-            row.len()
+            row.len
         } else {
             0
         };
@@ -278,6 +278,7 @@ impl Editor {
     fn insert_mode(&mut self, key: Key) {
         match key {
             Key::Esc => self.change_mode(Mode::Command),
+            Key::Char(c) => self.document.insert(c, &self.cursor_position),
             _ => (),
         }
     }
