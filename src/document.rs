@@ -5,7 +5,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use super::editor::Position;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Row {
     pub string: String,
     pub len: usize,
@@ -15,6 +15,18 @@ impl From<&str> for Row {
     fn from(s: &str) -> Self {
         let mut row = Self {
             string: String::from(s),
+            len: 0,
+        };
+
+        row.update_len();
+        row
+    }
+}
+
+impl From<String> for Row {
+    fn from(s: String) -> Self {
+        let mut row = Self {
+            string: s,
             len: 0,
         };
 
@@ -73,6 +85,7 @@ pub struct Document {
     pub filename: String,
 }
 
+// Utility functions
 impl Document {
     pub fn open(filename: &str) -> Result<Self, std::io::Error> {
         let contents = fs::read_to_string(filename)?;
@@ -89,24 +102,6 @@ impl Document {
         Ok(rows)
     }
 
-    pub fn insert(&mut self, c: char, at: &Position) {
-        if at.y < self.len() {
-            let row = self.rows.get_mut(at.y).unwrap();
-            row.insert(at.x, c);
-        }
-    }
-
-    pub fn enter(&mut self, y: usize) {
-        let mut row = Row::default();
-        if y == self.rows.len() {
-            self.rows.push(row);
-        } else {
-            let start = self.rows.iter().take(y);
-            let remainder = self.rows.iter().skip(y);
-            todo!("Enter key not done properly");
-        }
-    }
-
     pub fn is_empty(&self) -> bool {
         self.rows.is_empty()
     }
@@ -117,5 +112,47 @@ impl Document {
 
     pub fn row(&self, index: usize) -> Option<&Row> {
         self.rows.get(index)
+    }
+}
+
+// Functions related to typing
+impl Document {
+    pub fn insert(&mut self, c: char, at: &Position) {
+        if at.y < self.len() {
+            let row = self.rows.get_mut(at.y).unwrap();
+            row.insert(at.x, c);
+        }
+    }
+
+    pub fn enter(&mut self, y: usize) {
+        let mut new_row = Row::default();
+        if y == self.rows.len() {
+            self.rows.push(new_row);
+        } else {
+            let start = self.rows.iter().take(y);
+            let remainder = self.rows.iter().skip(y);
+
+            let mut rows: Vec<Row> = vec![];
+            for row in start {
+                rows.push(row.clone());
+            }
+
+            rows.push(new_row);
+            for row in remainder {
+                rows.push(row.clone());
+            }
+
+            self.rows = rows;
+        }
+    }
+
+    pub fn delete(&mut self, at: &Position) {
+        if let Some(current_row) =  self.rows.get_mut(at.y) {
+            let mut contents = current_row.contents();
+            // take() takes from start to at.x, not to just one elem before at.x
+            let contents = contents.chars().take(at.x - 1).collect::<String>();
+            let mut new_row = Row::from(contents);
+            *current_row = new_row;
+        }
     }
 }

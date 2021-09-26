@@ -289,16 +289,20 @@ impl Editor {
         let Position { mut x, mut y } = self.cursor_position;
         match key {
             Key::Esc => self.change_mode(Mode::Command),
-            Key::Backspace => todo!("Backspace not implemented yet"),
+            Key::Backspace => {
+                self.document.delete(&self.cursor_position);
+                self.normal_mode(Key::Char('h'));
+            }
             Key::Char(c) => {
                 if c == '\n' {
                     self.document.enter(y);
                     self.normal_mode(Key::Char('j'));
-                } 
+                } else {
+                    self.document.insert(c, &self.cursor_position);
+                    self.normal_mode(Key::Char('l'));
+                }
+            }
 
-                self.document.insert(c, &self.cursor_position);
-                self.normal_mode(Key::Char('l'));
-            },
             _ => (),
         }
     }
