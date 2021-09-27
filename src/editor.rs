@@ -21,11 +21,20 @@ struct StatusMessage {
     time: Instant,
 }
 
-impl StatusMessage {
+impl From<String> for StatusMessage {
     fn from(message: String) -> Self {
         Self {
             time: Instant::now(),
             text: message,
+        }
+    }
+}
+
+impl From<&str> for StatusMessage {
+    fn from(message: &str) -> Self {
+        Self {
+            time: Instant::now(),
+            text: message.to_string(),
         }
     }
 }
@@ -130,11 +139,13 @@ impl Editor {
             Key::Char('i') => {
                 if self.mode == Mode::Insert {
                     self.insert_mode(pressed_key)
-                } else {
+                } else if self.mode != Mode::Command {
                     self.change_mode(Mode::Insert)
+                } else {
+                    self.command_mode(pressed_key)
                 }
             }
-            Key::Char(':') => todo!("Implement command mode"),
+            Key::Char(':') => self.change_mode(Mode::Command),
             _ => self.check_mode(pressed_key),
         }
 
@@ -285,6 +296,29 @@ impl Editor {
         self.cursor_position = Position { x, y }
     }
 
+    fn command_mode(&mut self, key: Key) {
+        if !self.status_message.text.contains(">> ") {
+            self.status_message = StatusMessage {
+                text: ">> ".to_string(),
+                time: Instant::now(),
+            };
+        }
+
+        match key {
+            Key::Char(c) => {
+                self.status_message.text.push_str(&c.to_string());
+                // self.change_status(text);
+            },
+            Key::Backspace => {
+            }
+            _ => (),
+        }
+    }
+
+    fn change_status(&mut self, text: &str) {
+        self.status_message.text = text.to_string();
+    }
+
     fn insert_mode(&mut self, key: Key) {
         let Position { mut x, mut y } = self.cursor_position;
         match key {
@@ -310,6 +344,8 @@ impl Editor {
     fn check_mode(&mut self, key: Key) {
         if self.mode == Mode::Normal {
             self.normal_mode(key);
+        } else if self.mode == Mode::Command {
+            self.command_mode(key);
         } else {
             self.insert_mode(key);
         }

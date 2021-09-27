@@ -1,5 +1,6 @@
 use std::cmp;
 use std::fs;
+use std::io::prelude::*;
 use std::iter::FromIterator;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -25,10 +26,7 @@ impl From<&str> for Row {
 
 impl From<String> for Row {
     fn from(s: String) -> Self {
-        let mut row = Self {
-            string: s,
-            len: 0,
-        };
+        let mut row = Self { string: s, len: 0 };
 
         row.update_len();
         row
@@ -46,12 +44,7 @@ impl Row {
             .skip(start)
             .take(end - start)
         {
-            // Change tabs to spaces
-            if grapheme == "\t" {
-                result.push_str(" ");
-            } else {
-                result.push_str(grapheme);
-            }
+            result.push_str(grapheme);
         }
 
         result
@@ -129,8 +122,8 @@ impl Document {
         if y == self.rows.len() {
             self.rows.push(new_row);
         } else {
-            let start = self.rows.iter().take(y);
-            let remainder = self.rows.iter().skip(y);
+            let start = self.rows.iter().take(y + 1);
+            let remainder = self.rows.iter().skip(y + 1);
 
             let mut rows: Vec<Row> = vec![];
             for row in start {
@@ -147,12 +140,25 @@ impl Document {
     }
 
     pub fn delete(&mut self, at: &Position) {
-        if let Some(current_row) =  self.rows.get_mut(at.y) {
+        if let Some(current_row) = self.rows.get_mut(at.y) {
             let mut contents = current_row.contents();
             // take() takes from start to at.x, not to just one elem before at.x
-            let contents = contents.chars().take(at.x - 1).collect::<String>();
+            let contents = contents
+                .chars()
+                .take(at.x.saturating_sub(1))
+                .collect::<String>();
             let mut new_row = Row::from(contents);
             *current_row = new_row;
+        }
+    }
+
+    pub fn save_file(&mut self) {
+        if let Ok(mut file) = fs::File::open(&self.filename) {
+            for row in &self.rows {
+                file.write_all(row.string.as_bytes());
+            }
+        } else {
+            eprintln!("CANNOT SAVE. NO FILE IS OPENED.");
         }
     }
 }
