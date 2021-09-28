@@ -1,10 +1,12 @@
-use super::modes::Mode;
-use super::terminal;
-use terminal::Terminal;
-
 use std::env;
 use std::time::Duration;
 use std::time::Instant;
+
+use super::terminal;
+use terminal::Terminal;
+
+use super::modes::Mode;
+use super::status_message::StatusMessage;
 
 use super::document;
 use document::{Document, Row};
@@ -15,29 +17,6 @@ use termion::event::Key;
 const STATUS_FG_COLOUR: Rgb = Rgb(63, 63, 63);
 const STATUS_BAR_BG_COLOUR: Rgb = Rgb(239, 239, 239);
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-struct StatusMessage {
-    text: String,
-    time: Instant,
-}
-
-impl From<String> for StatusMessage {
-    fn from(message: String) -> Self {
-        Self {
-            time: Instant::now(),
-            text: message,
-        }
-    }
-}
-
-impl From<&str> for StatusMessage {
-    fn from(message: &str) -> Self {
-        Self {
-            time: Instant::now(),
-            text: message.to_string(),
-        }
-    }
-}
 
 #[derive(Default)]
 pub struct Position {
@@ -58,7 +37,7 @@ pub struct Editor {
     terminal: Terminal,
     cursor_position: Position,
     should_quit: bool,
-    status_message: StatusMessage,
+    status: StatusMessage,
 }
 
 impl Editor {
@@ -88,7 +67,7 @@ impl Editor {
             document,
             terminal: Terminal::new().expect("Failed to initialize terminal."),
             cursor_position: Position { x: 0, y: 0 },
-            status_message: StatusMessage::from(initial_status),
+            status: StatusMessage::from(initial_status),
         }
     }
 
@@ -161,7 +140,7 @@ impl Editor {
         let terminal_height = self.terminal.size().height as usize;
         let Position { mut x, mut y } = self.cursor_position;
 
-        let height = self.document.len();
+        let doc_height = self.document.len();
         // the width changes depending on the length of the row
         let mut width = if let Some(row) = self.document.row(y) {
             row.len
@@ -172,7 +151,7 @@ impl Editor {
         match key {
             Key::Char('k') => y = y.saturating_sub(1),
             Key::Char('j') => {
-                if y < height.saturating_sub(1) {
+                if y < doc_height.saturating_sub(1) {
                     y = y.saturating_add(1)
                 }
             }
@@ -193,7 +172,7 @@ impl Editor {
             Key::Char('l') => {
                 if x < width {
                     x += 1;
-                } else if y < height.saturating_sub(1) {
+                } else if y < doc_height.saturating_sub(1) {
                     y += 1;
                     x = 0;
                 }
@@ -211,7 +190,7 @@ impl Editor {
                             }
                         }
 
-                        if (y < height && x == 0) && y > 0 {
+                        if (y < doc_height && x == 0) && y > 0 {
                             y -= 1;
                             x = row.len + 2;
                         } else {
@@ -232,7 +211,7 @@ impl Editor {
                             }
                         }
 
-                        if x >= width && y < height.saturating_sub(1) {
+                        if x >= width && y < doc_height.saturating_sub(1) {
                             y += 1;
                             x = 0;
                         } else {
@@ -255,11 +234,11 @@ impl Editor {
             Key::Char('J') => {
                 // terminal_height is the number of visible rows on the screen.
                 // height is the number of rows in the entire file
-                y = if y.saturating_add(terminal_height) < height.saturating_sub(1) {
+                y = if y.saturating_add(terminal_height) < doc_height.saturating_sub(1) {
                     y + terminal_height as usize
                 } else {
                     // This is only true when it's at the last page
-                    height.saturating_sub(1)
+                    doc_height.saturating_sub(1)
                 }
             }
 
@@ -297,16 +276,16 @@ impl Editor {
     }
 
     fn command_mode(&mut self, key: Key) {
-        if !self.status_message.text.contains(">> ") {
-            self.status_message = StatusMessage {
-                text: ">> ".to_string(),
-                time: Instant::now(),
-            };
+        if !self.status.text.contains(">> ") {
+            self.status.update_status(">> ");
         }
+
+        let terminal_height = self.terminal.size().height as usize + 2;
+        self.cursor_position.y = terminal_height;
 
         match key {
             Key::Char(c) => {
-                self.status_message.text.push_str(&c.to_string());
+                self.status.text.push_str(&c.to_string());
                 // self.change_status(text);
             },
             Key::Backspace => {
@@ -316,7 +295,7 @@ impl Editor {
     }
 
     fn change_status(&mut self, text: &str) {
-        self.status_message.text = text.to_string();
+        self.status.text = text.to_string();
     }
 
     fn insert_mode(&mut self, key: Key) {
@@ -425,7 +404,7 @@ impl Editor {
 
     fn draw_message_bar(&mut self) {
         self.terminal.clear_current_line();
-        let message = &self.status_message;
+        let message = &self.status;
         if Instant::now() - message.time < Duration::new(5, 0) {
             let mut text = message.text.clone();
             text.truncate(self.terminal.size().width as usize);
