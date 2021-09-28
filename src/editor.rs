@@ -255,6 +255,8 @@ impl Editor {
                 x = row.len;
                 self.change_mode(Mode::Insert);
             }
+
+            Key::Alt('w') => self.document.save_file(),
             _ => (),
         }
 
@@ -276,20 +278,16 @@ impl Editor {
     }
 
     fn command_mode(&mut self, key: Key) {
-        if !self.status.text.contains(">> ") {
-            self.status.update_status(">> ");
+        if !self.status.text.contains(":") {
+            self.status.update_status(":");
         }
-
-        let terminal_height = self.terminal.size().height as usize + 2;
-        self.cursor_position.y = terminal_height;
 
         match key {
             Key::Char(c) => {
                 self.status.text.push_str(&c.to_string());
                 // self.change_status(text);
-            },
-            Key::Backspace => {
             }
+            Key::Backspace => {}
             _ => (),
         }
     }

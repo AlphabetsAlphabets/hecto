@@ -1,10 +1,10 @@
 mod editor;
 use editor::Editor;
 
-mod modes;
 mod document;
-mod terminal;
+mod modes;
 mod status_message;
+mod terminal;
 
 fn main() {
     let mut editor = Editor::new();

@@ -127,7 +127,9 @@ impl Document {
 
             let mut rows: Vec<Row> = vec![];
             for row in start {
-                rows.push(row.clone());
+                let mut row = row.clone();
+                row.string.push_str(&"\n".to_string());
+                rows.push(row);
             }
 
             rows.push(new_row);
@@ -153,9 +155,13 @@ impl Document {
     }
 
     pub fn save_file(&mut self) {
-        if let Ok(mut file) = fs::File::open(&self.filename) {
+        let mut file = fs::OpenOptions::new();
+        let file = file.truncate(true).write(true).open(&self.filename);
+        if let Ok(mut file) = file {
             for row in &self.rows {
-                file.write_all(row.string.as_bytes());
+                if file.write_all(row.string.as_bytes()).is_err() {
+                    eprintln!("CANNOT SAVE.");
+                }
             }
         } else {
             eprintln!("CANNOT SAVE. NO FILE IS OPENED.");
