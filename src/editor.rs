@@ -300,9 +300,9 @@ impl Editor {
         let Position { mut x, mut y } = self.cursor_position;
         match key {
             Key::Esc => self.change_mode(Mode::Command),
-            Key::Backspace => {
-                self.document.delete(&self.cursor_position);
+            Key::Backspace => if self.cursor_position.x > 0 || self.cursor_position.y > 0 {
                 self.normal_mode(Key::Char('h'));
+                self.document.delete(&self.cursor_position);
             }
             Key::Char(c) => {
                 if c == '\n' {

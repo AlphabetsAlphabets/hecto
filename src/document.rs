@@ -70,6 +70,24 @@ impl Row {
     pub fn contents(&self) -> String {
         self.string.clone()
     }
+
+    pub fn append(&mut self, new: &Self) {
+        self.string = format!("{}{}", self.string, new.string);
+        self.update_len();
+    }
+
+    pub fn delete(&mut self, at: usize) {
+        if at >= self.len {
+            return;
+        } else {
+            let mut result: String = self.string[..].graphemes(true).take(at).collect();
+            let mut remainder: String = self.string[..].graphemes(true).skip(at + 1).collect();
+            result.push_str(&remainder);
+            self.string = result;
+        }
+
+        self.update_len();
+    }
 }
 
 #[derive(Default)]
@@ -122,7 +140,7 @@ impl Document {
         if y == self.rows.len() {
             self.rows.push(new_row);
         } else {
-            let start = self.rows.iter().take(y + 1);
+            let mut start = self.rows.iter().take(y + 1);
             let remainder = self.rows.iter().skip(y + 1);
 
             let mut rows: Vec<Row> = vec![];
@@ -142,15 +160,18 @@ impl Document {
     }
 
     pub fn delete(&mut self, at: &Position) {
-        if let Some(current_row) = self.rows.get_mut(at.y) {
-            let mut contents = current_row.contents();
-            // take() takes from start to at.x, not to just one elem before at.x
-            let contents = contents
-                .chars()
-                .take(at.x.saturating_sub(1))
-                .collect::<String>();
-            let mut new_row = Row::from(contents);
-            *current_row = new_row;
+        let len = self.len();
+        if at.y >= len {
+            return;
+        }
+
+        if at.x == self.rows.get_mut(at.y).unwrap().len && at.y < len - 1 {
+            let next_row = self.rows.remove(at.y + 1);
+            let row = self.rows.get_mut(at.y).unwrap();
+            row.append(&next_row);
+        } else {
+            let row = self.rows.get_mut(at.y).unwrap();
+            row.delete(at.x);
         }
     }
 
