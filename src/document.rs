@@ -67,8 +67,8 @@ impl Document {
                 .collect();
 
             let new_row = Row::from(contents);
+
             *current_row = new_row;
-            current_row.update_len();
         }
     }
 

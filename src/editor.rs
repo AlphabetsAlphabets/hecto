@@ -120,13 +120,11 @@ impl Editor {
             Key::Char('i') => {
                 if self.mode == Mode::Insert {
                     self.insert_mode(pressed_key)
-                } else if self.mode != Mode::Command {
-                    self.change_mode(Mode::Insert)
                 } else {
-                    self.command_mode(pressed_key)
+                    self.change_mode(Mode::Insert)
                 }
             }
-            Key::Char(':') => self.change_mode(Mode::Command),
+            Key::Char(':') => todo!("Implement command mode"),
             _ => self.check_mode(pressed_key),
         }
 
@@ -280,21 +278,12 @@ impl Editor {
     }
 
     fn command_mode(&mut self, key: Key) {
-        if !self.status.text.contains(":") {
-            self.status.update_status(":");
-        }
-
+        todo!("\n\nIMPLEMENT COMMNAD MODE\n\n");
         match key {
             Key::Char(c) => {
-                self.status.text.push_str(&c.to_string());
-                // self.change_status(text);
             }
             _ => (),
         }
-    }
-
-    fn change_status(&mut self, text: &str) {
-        self.status.text = text.to_string();
     }
 
     fn insert_mode(&mut self, key: Key) {
@@ -324,8 +313,6 @@ impl Editor {
     fn check_mode(&mut self, key: Key) {
         if self.mode == Mode::Normal {
             self.normal_mode(key);
-        } else if self.mode == Mode::Command {
-            self.command_mode(key);
         } else {
             self.insert_mode(key);
         }
