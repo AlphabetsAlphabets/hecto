@@ -8,8 +8,10 @@ use terminal::Terminal;
 use super::modes::Mode;
 use super::status_message::StatusMessage;
 
+use super::rows::Row;
+
 use super::document;
-use document::{Document, Row};
+use document::Document;
 
 use termion::color::Rgb;
 use termion::event::Key;
@@ -287,7 +289,6 @@ impl Editor {
                 self.status.text.push_str(&c.to_string());
                 // self.change_status(text);
             }
-            Key::Backspace => {}
             _ => (),
         }
     }
@@ -300,13 +301,15 @@ impl Editor {
         let Position { mut x, mut y } = self.cursor_position;
         match key {
             Key::Esc => self.change_mode(Mode::Command),
-            Key::Backspace => if self.cursor_position.x > 0 || self.cursor_position.y > 0 {
-                self.normal_mode(Key::Char('h'));
-                self.document.delete(&self.cursor_position);
+            Key::Backspace => {
+                if self.cursor_position.x > 0 || self.cursor_position.y > 0 {
+                    self.normal_mode(Key::Char('h'));
+                    self.document.delete(&self.cursor_position);
+                }
             }
             Key::Char(c) => {
                 if c == '\n' {
-                    self.document.enter(y);
+                    self.document.enter(&self.cursor_position);
                     self.normal_mode(Key::Char('j'));
                 } else {
                     self.document.insert(c, &self.cursor_position);

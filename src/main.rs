@@ -3,6 +3,7 @@ use editor::Editor;
 
 mod document;
 mod modes;
+mod rows;
 mod status_message;
 mod terminal;
 
