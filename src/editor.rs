@@ -291,10 +291,8 @@ impl Editor {
         match key {
             Key::Esc => self.change_mode(Mode::Command),
             Key::Backspace => {
-                if self.cursor_position.x > 0 || self.cursor_position.y > 0 {
-                    self.normal_mode(Key::Char('h'));
-                    self.document.delete(&self.cursor_position);
-                }
+                self.document.delete(&self.cursor_position);
+                self.normal_mode(Key::Char('h'));
             }
             Key::Char(c) => {
                 if c == '\n' {

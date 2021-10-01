@@ -59,16 +59,22 @@ impl Document {
     }
 
     pub fn delete(&mut self, at: &Position) {
-        if let Some(current_row) = self.rows.get_mut(at.y) {
-            let contents = current_row.contents();
-            let contents: String = contents
-                .chars()
-                .take(at.x.saturating_sub(1))
-                .collect();
+        if at.x == 0 {
+            let front = self.rows.iter().take(at.y.saturating_sub(1));
+            let back = self.rows.iter().skip(at.y.saturating_sub(1));
+        } else {
+            if let Some(current_row) = self.rows.get_mut(at.y) {
+                let contents = current_row.contents();
+                let contents: String = contents
+                    .chars()
+                    .take(at.x.saturating_sub(1))
+                    .collect();
 
-            let new_row = Row::from(contents);
+                let new_row = Row::from(contents);
 
-            *current_row = new_row;
+                *current_row = new_row;
+                current_row.update_len();
+            }
         }
     }
 

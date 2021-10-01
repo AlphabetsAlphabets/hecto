@@ -57,6 +57,7 @@ impl Row {
             result.push_str(&remainder);
             self.string = result;
         }
+
         self.update_len();
     }
 
