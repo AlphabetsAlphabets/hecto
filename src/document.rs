@@ -54,8 +54,6 @@ impl Document {
     }
 
     fn insert_newline(&mut self, at: &Position) {
-        // NOTE: This part is supposed to let you split the line into two halves
-        // and have the right half of the line move underneath.
         let new_row = self.rows.get_mut(at.y).unwrap().split(at.x);
         self.rows.insert(at.y + 1, new_row);
     }
@@ -76,7 +74,7 @@ impl Document {
 
             self.rows.remove(at.y);
         } else {
-            // removing the text itself
+            // removing the text from the row
             let current: String = current_row
                 .string
                 .graphemes(true)
@@ -91,17 +89,19 @@ impl Document {
         }
     }
 
-    pub fn save_file(&mut self) {
+    fn truncate_and_open_file(&self) -> Result<fs::File, std::io::Error> {
         let mut file = fs::OpenOptions::new();
-        let file = file.truncate(true).write(true).open(&self.filename);
-        if let Ok(mut file) = file {
+        file.write(true)
+            .truncate(true)
+            .open(&self.filename)
+    }
+
+    pub fn save_file(&mut self) {
+        if let Ok(mut file) = self.truncate_and_open_file() {
             for row in &self.rows {
-                if file.write_all(row.string.as_bytes()).is_err() {
-                    eprintln!("CANNOT SAVE.");
-                }
+                let string = format!("{}\n", row.string);
+                file.write_all(string.as_bytes()).unwrap();
             }
-        } else {
-            eprintln!("CANNOT SAVE. NO FILE IS OPENED.");
-        }
+        }     
     }
 }

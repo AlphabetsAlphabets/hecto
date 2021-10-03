@@ -215,6 +215,8 @@ impl Editor {
                             y += 1;
                             x = 0;
                         } else {
+                            // NOTE: This will need fixing, different behaviour when
+                            // non ascii alphabetic characters appear.
                             x = x.saturating_add(index + 1);
                         }
                     }
