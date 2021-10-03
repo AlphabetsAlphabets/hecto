@@ -30,6 +30,7 @@ impl From<String> for Row {
     }
 }
 
+// Utility
 impl Row {
     pub fn render(&self, start: usize, end: usize) -> String {
         let end = cmp::min(end, self.string.len());
@@ -47,23 +48,10 @@ impl Row {
         result
     }
 
-    pub fn insert(&mut self, at: &Position, c: char) {
-        if at.x >= self.len {
-            self.string.push(c);
-        } else {
-            let mut result: String = self.string[..].graphemes(true).take(at.x).collect();
-            let remainder: String = self.string[..].graphemes(true).skip(at.x).collect();
-            result.push(c);
-            result.push_str(&remainder);
-            self.string = result;
-        }
-
-        self.update_len();
-    }
-
+    /// Splits current row into two rows, first half is before at, second half is after at.
     pub fn split(&mut self, at: usize) -> Self {
-        let beginning: String = self.string[..].graphemes(true).take(at).collect();
-        let remainder: String = self.string[..].graphemes(true).skip(at).collect();
+        let beginning: String = self.string.graphemes(true).take(at).collect();
+        let remainder: String = self.string.graphemes(true).skip(at).collect();
 
         self.string = beginning;
         self.update_len();
@@ -76,5 +64,22 @@ impl Row {
 
     pub fn contents(&self) -> String {
         self.string.clone()
+    }
+}
+
+// Text related
+impl Row {
+    pub fn insert(&mut self, at: &Position, c: char) {
+        if at.x >= self.len {
+            self.string.push(c);
+        } else {
+            let mut result: String = self.string[..].graphemes(true).take(at.x).collect();
+            let remainder: String = self.string[..].graphemes(true).skip(at.x).collect();
+            result.push(c);
+            result.push_str(&remainder);
+            self.string = result;
+        }
+
+        self.update_len();
     }
 }

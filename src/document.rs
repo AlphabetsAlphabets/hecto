@@ -60,21 +60,23 @@ impl Document {
         self.rows.insert(at.y + 1, new_row);
     }
 
-    pub fn delete(&mut self, at: &Position) {
+    pub fn backspace(&mut self, at: &Position) {
         let mut current_row = self.rows.get_mut(at.y).unwrap();
 
         if current_row.string.len() == 0 {
-            let mut start = self.rows
-                .get_mut(..at.y.saturating_sub(1))
-                .unwrap()
-                .to_vec();
+            // removing rows
+            self.rows.remove(at.y);
+        } else if at.x == 0 {
+            // removing rows
+            let current_row = self.rows.get_mut(at.y).unwrap();
+            let contents = current_row.contents();
 
-            let mut remainder = self.rows.get_mut(at.y..).unwrap().to_vec();
-            let mut rows: Vec<Row> = vec![];
+            let mut row_above_current = self.rows.get_mut(at.y.saturating_sub(1)).unwrap();
+            row_above_current.string = format!("{}{}", row_above_current.string, contents);
 
-            rows.append(&mut start);
-            rows.append(&mut remainder);
+            self.rows.remove(at.y);
         } else {
+            // removing the text itself
             let current: String = current_row
                 .string
                 .graphemes(true)

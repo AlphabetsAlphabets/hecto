@@ -243,6 +243,8 @@ impl Editor {
             }
 
             Key::Char('g') => y = 0,
+            Key::Char('0') => x = 0,
+            // Change this S
             Key::Char('S') => x = 0,
             Key::Char('s') => x = width,
 
@@ -290,13 +292,14 @@ impl Editor {
         match key {
             Key::Esc => self.change_mode(Mode::Command),
             Key::Backspace => {
-                self.document.delete(&self.cursor_position);
+                self.document.backspace(&self.cursor_position);
                 self.normal_mode(Key::Char('h'));
             }
             Key::Char(c) => {
                 if c == '\n' {
                     self.document.enter(&self.cursor_position);
                     self.normal_mode(Key::Char('j'));
+                    self.normal_mode(Key::Char('0'));
                 } else {
                     self.document.insert(c, &self.cursor_position);
                     self.normal_mode(Key::Char('l'));
