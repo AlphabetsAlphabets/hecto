@@ -4,7 +4,9 @@ use std::io::prelude::*;
 use super::editor::Position;
 use super::rows::Row;
 
-#[derive(Default)]
+use unicode_segmentation::UnicodeSegmentation;
+
+#[derive(Default, Clone)]
 pub struct Document {
     pub rows: Vec<Row>,
     pub filename: String,
@@ -59,22 +61,31 @@ impl Document {
     }
 
     pub fn delete(&mut self, at: &Position) {
-        if at.x == 0 {
-            let front = self.rows.iter().take(at.y.saturating_sub(1));
-            let back = self.rows.iter().skip(at.y.saturating_sub(1));
+        let mut current_row = self.rows.get_mut(at.y).unwrap();
+
+        if current_row.string.len() == 0 {
+            let mut start = self.rows
+                .get_mut(..at.y.saturating_sub(1))
+                .unwrap()
+                .to_vec();
+
+            let mut remainder = self.rows.get_mut(at.y..).unwrap().to_vec();
+            let mut rows: Vec<Row> = vec![];
+
+            rows.append(&mut start);
+            rows.append(&mut remainder);
         } else {
-            if let Some(current_row) = self.rows.get_mut(at.y) {
-                let contents = current_row.contents();
-                let contents: String = contents
-                    .chars()
-                    .take(at.x.saturating_sub(1))
-                    .collect();
+            let current: String = current_row
+                .string
+                .graphemes(true)
+                .take(at.x.saturating_sub(1))
+                .collect();
 
-                let new_row = Row::from(contents);
+            let remainder: String = current_row.string.graphemes(true).skip(at.x).collect();
 
-                *current_row = new_row;
-                current_row.update_len();
-            }
+            let new_row = format!("{}{}", current, remainder);
+            let new_row = Row::from(new_row);
+            *current_row = new_row;
         }
     }
 

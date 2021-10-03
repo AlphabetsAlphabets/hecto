@@ -280,8 +280,7 @@ impl Editor {
     fn command_mode(&mut self, key: Key) {
         todo!("\n\nIMPLEMENT COMMNAD MODE\n\n");
         match key {
-            Key::Char(c) => {
-            }
+            Key::Char(c) => {}
             _ => (),
         }
     }
