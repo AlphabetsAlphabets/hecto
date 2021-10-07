@@ -45,8 +45,14 @@ impl Document {
 // Functions related to typing
 impl Document {
     pub fn insert(&mut self, c: char, at: &Position) {
-        let row = self.rows.get_mut(at.y).unwrap();
-        row.insert(at, c);
+        if self.rows.is_empty() {
+            let c = c.to_string();
+            let row = Row::from(c);
+            self.rows.push(row);
+        } else {
+            let row = self.rows.get_mut(at.y).unwrap();
+            row.insert(at, c);
+        }
     }
 
     pub fn enter(&mut self, at: &Position) {
@@ -59,7 +65,7 @@ impl Document {
     }
 
     pub fn backspace(&mut self, at: &Position) {
-        let mut current_row = self.rows.get_mut(at.y).unwrap();
+        let current_row = self.rows.get_mut(at.y).unwrap();
 
         if current_row.string.len() == 0 {
             // removing rows

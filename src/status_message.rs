@@ -22,9 +22,3 @@ impl From<&str> for StatusMessage {
         }
     }
 }
-
-impl StatusMessage {
-    pub fn update_status(&mut self, text: &str) {
-        self.text = text.to_string();
-    }
-}

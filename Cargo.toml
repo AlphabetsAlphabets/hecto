@@ -7,4 +7,5 @@ edition = "2018"
 
 [dependencies]
 termion = "1"
+crossterm = "0.21.0"
 unicode-segmentation = "1"

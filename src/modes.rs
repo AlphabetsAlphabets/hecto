@@ -5,7 +5,6 @@ pub enum Mode {
     Insert,
     Normal,
     Command,
-    Visual,
 }
 
 impl fmt::Display for Mode {
@@ -14,7 +13,6 @@ impl fmt::Display for Mode {
             Self::Insert => "INSERT",
             Self::Normal => "NORMAL",
             Self::Command => "COMMAND",
-            Self::Visual => "VISUAL",
         };
 
         write!(f, "MODE: {}", mode)

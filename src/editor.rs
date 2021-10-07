@@ -16,8 +16,10 @@ use document::Document;
 use termion::color::Rgb;
 use termion::event::Key;
 
-const STATUS_FG_COLOUR: Rgb = Rgb(63, 63, 63);
-const STATUS_BAR_BG_COLOUR: Rgb = Rgb(239, 239, 239);
+use crossterm::style::Color;
+
+const STATUS_FG_COLOUR: Color = Color::Rgb { r: 63, g: 63, b: 63 };
+const STATUS_BAR_BG_COLOUR: Color = Color::Rgb { r: 239, g: 239, b: 239 };
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Default)]
@@ -92,12 +94,7 @@ impl Editor {
                 self.draw_rows();
                 self.draw_status_bar();
                 self.draw_message_bar();
-                // since scrolling to the left and right is implemented
-                // the cursor needs to retain the current position with
-                // as the cursor pos is added with the offset values
-                // so to place the cursor in the right position
-                // the value for the offsets needs to be subtracted from
-                // the cursor's position.
+
                 let pos = Position {
                     x: self.cursor_position.x.saturating_sub(self.offset.x),
                     y: self.cursor_position.y.saturating_sub(self.offset.y),
@@ -115,7 +112,6 @@ impl Editor {
     fn process_keypress(&mut self) -> Result<(), std::io::Error> {
         let pressed_key = Terminal::read_key()?;
         match pressed_key {
-            Key::Ctrl('q') => self.should_quit = true,
             Key::Esc => self.change_mode(Mode::Normal),
             Key::Char('i') => {
                 if self.mode == Mode::Insert {
@@ -260,7 +256,17 @@ impl Editor {
                 self.change_mode(Mode::Insert);
             }
 
-            Key::Alt('w') => self.document.save_file(),
+            Key::Alt('w') => {
+                let filename = &self.document.filename;
+                if filename == "[NO FILE OPENED]" {
+                    todo!("Ask the user for the name of the file.");
+                } else {
+                    let status = StatusMessage::from("File written.");
+                    self.document.save_file();
+                    self.status = status;
+                }
+            }
+            Key::Ctrl('q') => self.should_quit = true,
             _ => (),
         }
 
@@ -283,14 +289,9 @@ impl Editor {
 
     fn command_mode(&mut self, key: Key) {
         todo!("\n\nIMPLEMENT COMMNAD MODE\n\n");
-        match key {
-            Key::Char(c) => {}
-            _ => (),
-        }
     }
 
     fn insert_mode(&mut self, key: Key) {
-        let Position { mut x, mut y } = self.cursor_position;
         match key {
             Key::Esc => self.change_mode(Mode::Command),
             Key::Backspace => {
@@ -302,6 +303,11 @@ impl Editor {
                     self.document.enter(&self.cursor_position);
                     self.normal_mode(Key::Char('j'));
                     self.normal_mode(Key::Char('0'));
+                } else if c == '\t' {
+                    self.insert_mode(Key::Char(' '));
+                    self.insert_mode(Key::Char(' '));
+                    self.insert_mode(Key::Char(' '));
+                    self.insert_mode(Key::Char(' '));
                 } else {
                     self.document.insert(c, &self.cursor_position);
                     self.normal_mode(Key::Char('l'));
