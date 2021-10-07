@@ -2,9 +2,6 @@ use std::io::{self, stdout, Write, Stdout};
 
 use super::editor::Position;
 
-use termion::event::Key;
-use termion::input::TermRead;
-
 use crossterm::execute;
 use crossterm::cursor;
 use crossterm::style::{Color, SetBackgroundColor, SetForegroundColor};
@@ -56,14 +53,6 @@ impl Terminal {
 
     pub fn size(&self) -> &Size {
         &self.size
-    }
-
-    pub fn read_key() -> Result<Key, std::io::Error> {
-        loop {
-            if let Some(key) = io::stdin().lock().keys().next() {
-                return key;
-            }
-        }
     }
 
     pub fn set_bg_color(&mut self, color: Color) {

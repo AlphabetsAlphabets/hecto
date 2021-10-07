@@ -13,11 +13,9 @@ use super::rows::Row;
 use super::document;
 use document::Document;
 
-use termion::color::Rgb;
-use termion::event::Key;
-
 use crossterm::style::Color;
 use crossterm::terminal::disable_raw_mode;
+use crossterm::event::{read, poll, KeyCode as Key, KeyEvent, Event, KeyModifiers as Mod};
 
 const STATUS_FG_COLOUR: Color = Color::Rgb { r: 63, g: 63, b: 63 };
 const STATUS_BAR_BG_COLOUR: Color = Color::Rgb { r: 239, g: 239, b: 239 };
@@ -112,19 +110,14 @@ impl Editor {
     }
 
     fn process_keypress(&mut self) -> Result<(), std::io::Error> {
-        let pressed_key = Terminal::read_key()?;
+        let pressed_key = read().unwrap();
         match pressed_key {
-            Key::Esc => self.change_mode(Mode::Normal),
-            Key::Char('i') => {
-                if self.mode == Mode::Insert {
-                    self.insert_mode(pressed_key)
-                } else {
-                    self.change_mode(Mode::Insert)
-                }
-            }
-            Key::Char(':') => todo!("Implement command mode"),
+            Event::Key(KeyEvent {
+                code: Key::Esc,
+                ..
+            }) => self.change_mode(Mode::Normal),
             _ => self.check_mode(pressed_key),
-        }
+        };
 
         self.scroll();
         Ok(())
@@ -134,7 +127,7 @@ impl Editor {
         self.mode = change_to;
     }
 
-    fn normal_mode(&mut self, key: Key) {
+    fn normal_mode(&mut self, key: Event) {
         let terminal_height = self.terminal.size().height as usize;
         let Position { mut x, mut y } = self.cursor_position;
 
@@ -147,129 +140,141 @@ impl Editor {
         };
 
         match key {
-            Key::Char('k') => y = y.saturating_sub(1),
-            Key::Char('j') => {
-                if y < doc_height.saturating_sub(1) {
-                    y = y.saturating_add(1)
+            Event::Key(event) => match event.code {
+                Key::Char('k') => y = y.saturating_sub(1),
+                Key::Char('j') => {
+                    if y < doc_height.saturating_sub(1) {
+                        y = y.saturating_add(1)
+                    }
                 }
-            }
-            Key::Char('h') => {
-                // lets the user move to the end of the previous line,
-                // if cursor at the start of a line.
-                if x > 0 {
-                    x -= 1;
-                } else if y > 0 {
-                    y -= 1;
-                    if let Some(row) = self.document.row(y) {
-                        x = row.len;
-                    } else {
+                Key::Char('h') => {
+                    // lets the user move to the end of the previous line,
+                    // if cursor at the start of a line.
+                    if x > 0 {
+                        x -= 1;
+                    } else if y > 0 {
+                        y -= 1;
+                        if let Some(row) = self.document.row(y) {
+                            x = row.len;
+                        } else {
+                            x = 0;
+                        }
+                    }
+                }
+                Key::Char('l') => {
+                    if x < width {
+                        x += 1;
+                    } else if y < doc_height.saturating_sub(1) {
+                        y += 1;
                         x = 0;
                     }
                 }
-            }
-            Key::Char('l') => {
-                if x < width {
-                    x += 1;
-                } else if y < doc_height.saturating_sub(1) {
-                    y += 1;
-                    x = 0;
-                }
-            }
 
-            Key::Char('b') => {
-                if let Some(row) = self.document.row(y) {
-                    if let Some(contents) = row.contents().get(..x) {
-                        let mut index = 0;
+                Key::Char('b') => {
+                    if let Some(row) = self.document.row(y) {
+                        if let Some(contents) = row.contents().get(..x) {
+                            let mut index = 0;
 
-                        for (count, ch) in contents.chars().rev().enumerate() {
-                            if !ch.is_ascii_alphabetic() {
-                                index = count + 1;
-                                break;
+                            for (count, ch) in contents.chars().rev().enumerate() {
+                                if !ch.is_ascii_alphabetic() {
+                                    index = count + 1;
+                                    break;
+                                }
                             }
-                        }
 
-                        if (y < doc_height && x == 0) && y > 0 {
-                            y -= 1;
-                            x = row.len + 2;
-                        } else {
-                            x = x.saturating_sub(index);
+                            if (y < doc_height && x == 0) && y > 0 {
+                                y -= 1;
+                                x = row.len + 2;
+                            } else {
+                                x = x.saturating_sub(index);
+                            }
                         }
                     }
                 }
-            }
 
-            Key::Char('w') => {
-                if let Some(row) = self.document.row(y) {
-                    if let Some(contents) = row.contents().get(x..) {
-                        let mut index = 0;
-                        for (count, ch) in contents.chars().enumerate() {
-                            if !ch.is_ascii_alphabetic() {
-                                index = count;
-                                break;
-                            }
-                        }
-
-                        if x >= width && y < doc_height.saturating_sub(1) {
-                            y += 1;
-                            x = 0;
+                Key::Char('w') => {
+                    if event.modifiers.contains(Mod::ALT) {
+                        let filename = &self.document.filename;
+                        if filename == "[NO FILE OPENED]" {
+                            todo!("Ask the user for the name of the file.");
                         } else {
-                            // NOTE: This will need fixing, different behaviour when
-                            // non ascii alphabetic characters appear.
-                            x = x.saturating_add(index + 1);
+                            let status = StatusMessage::from("File written.");
+                            self.document.save_file();
+                            self.status = status;
+                        }
+                    } else {
+                        if let Some(row) = self.document.row(y) {
+                            if let Some(contents) = row.contents().get(x..) {
+                                let mut index = 0;
+                                for (count, ch) in contents.chars().enumerate() {
+                                    if !ch.is_ascii_alphabetic() {
+                                        index = count;
+                                        break;
+                                    }
+                                }
+
+                                if x >= width && y < doc_height.saturating_sub(1) {
+                                    y += 1;
+                                    x = 0;
+                                } else {
+                                    // NOTE: This will need fixing, different behaviour when
+                                    // non ascii alphabetic characters appear.
+                                    x = x.saturating_add(index + 1);
+                                }
+                            }
                         }
                     }
                 }
-            }
 
-            Key::Char('K') => {
-                // first if only happens on the 1st screen.
-                y = if y > terminal_height {
-                    // saturating_add/sub not used because y and terminal_height
-                    // have the same type.
-                    y - terminal_height
-                } else {
-                    0
+                Key::Char('K') => {
+                    // first if only happens on the 1st screen.
+                    y = if y > terminal_height {
+                        // saturating_add/sub not used because y and terminal_height
+                        // have the same type.
+                        y - terminal_height
+                    } else {
+                        0
+                    }
                 }
-            }
-            Key::Char('J') => {
-                // terminal_height is the number of visible rows on the screen.
-                // height is the number of rows in the entire file
-                y = if y.saturating_add(terminal_height) < doc_height.saturating_sub(1) {
-                    y + terminal_height as usize
-                } else {
-                    // This is only true when it's at the last page
-                    doc_height.saturating_sub(1)
+                Key::Char('J') => {
+                    // terminal_height is the number of visible rows on the screen.
+                    // height is the number of rows in the entire file
+                    y = if y.saturating_add(terminal_height) < doc_height.saturating_sub(1) {
+                        y + terminal_height as usize
+                    } else {
+                        // This is only true when it's at the last page
+                        doc_height.saturating_sub(1)
+                    }
                 }
-            }
 
-            Key::Char('g') => y = 0,
-            Key::Char('0') => x = 0,
-            // Change this S
-            Key::Char('S') => x = 0,
-            Key::Char('s') => x = width,
-
-            Key::Char(':') => todo!("Implement command mode."),
-
-            // changing modes
-            Key::Char('i') => self.change_mode(Mode::Insert),
-            Key::Char('A') => {
-                let row = self.document.row(y).unwrap();
-                x = row.len;
-                self.change_mode(Mode::Insert);
-            }
-
-            Key::Alt('w') => {
-                let filename = &self.document.filename;
-                if filename == "[NO FILE OPENED]" {
-                    todo!("Ask the user for the name of the file.");
-                } else {
-                    let status = StatusMessage::from("File written.");
-                    self.document.save_file();
-                    self.status = status;
+                Key::Char('g') => y = 0,
+                Key::Char('0') => x = 0,
+                Key::Char('S') => {
+                    if let Some(row) = self.document.row(y) {
+                        let contents = row.string.trim_start();
+                        x = width - contents.len();
+                    }
                 }
-            }
-            Key::Ctrl('q') => self.should_quit = true,
-            _ => (),
+                Key::Char('s') => x = width.saturating_sub(1),
+
+                Key::Char(':') => todo!("Implement command mode."),
+
+                // changing modes
+                Key::Char('i') => self.change_mode(Mode::Insert),
+                Key::Char('A') => {
+                    let row = self.document.row(y).unwrap();
+                    x = row.len;
+                    self.change_mode(Mode::Insert);
+                },
+
+
+                Key::Char('q') => if event.modifiers.contains(Mod::CONTROL) {
+                    self.should_quit = true;
+                },
+
+                _ => (),
+            },
+            _ => ()
         }
 
         // adjusts the width the the length of the row
@@ -289,38 +294,57 @@ impl Editor {
         self.cursor_position = Position { x, y }
     }
 
-    fn command_mode(&mut self, key: Key) {
+    fn command_mode(&mut self, key: Event) {
         todo!("\n\nIMPLEMENT COMMNAD MODE\n\n");
     }
 
-    fn insert_mode(&mut self, key: Key) {
+    fn insert_mode(&mut self, key: Event) {
         match key {
-            Key::Esc => self.change_mode(Mode::Command),
-            Key::Backspace => {
-                self.document.backspace(&self.cursor_position);
-                self.normal_mode(Key::Char('h'));
-            }
-            Key::Char(c) => {
-                if c == '\n' {
-                    self.document.enter(&self.cursor_position);
-                    self.normal_mode(Key::Char('j'));
-                    self.normal_mode(Key::Char('0'));
-                } else if c == '\t' {
-                    self.insert_mode(Key::Char(' '));
-                    self.insert_mode(Key::Char(' '));
-                    self.insert_mode(Key::Char(' '));
-                    self.insert_mode(Key::Char(' '));
-                } else {
-                    self.document.insert(c, &self.cursor_position);
-                    self.normal_mode(Key::Char('l'));
+            Event::Key(event) => match event.code {
+                Key::Esc => self.change_mode(Mode::Command),
+                Key::Backspace => {
+                    self.document.backspace(&self.cursor_position);
+                    let h_key_event = self.create_event(Key::Char('h'), Mod::NONE);
+                    self.normal_mode(h_key_event);
                 }
-            }
+                Key::Enter => {
+                    self.document.enter(&self.cursor_position);
+                    let j_key_event = self.create_event(Key::Char('j'), Mod::NONE);
+                    let zero_key_event = self.create_event(Key::Char('0'), Mod::NONE);
 
+                    self.normal_mode(j_key_event);
+                    self.normal_mode(zero_key_event);
+                }
+                Key::Char(c) => {
+                    if c == '\t' {
+                        let space_key_event = self.create_event(Key::Char(' '), Mod::NONE);
+
+                        self.insert_mode(space_key_event);
+                        self.insert_mode(space_key_event);
+                        self.insert_mode(space_key_event);
+                        self.insert_mode(space_key_event);
+                    } else {
+                        self.document.insert(c, &self.cursor_position);
+                        let l_key_event = self.create_event(Key::Char('l'), Mod::NONE);
+
+                        self.normal_mode(l_key_event);
+                    }
+                },
+                _ => (),
+            },
             _ => (),
         }
     }
 
-    fn check_mode(&mut self, key: Key) {
+    fn create_event(&self, key: Key, modifier: Mod) -> Event {
+        Event::Key(KeyEvent {
+            code: key,
+            modifiers: modifier,
+        })
+    }
+
+
+    fn check_mode(&mut self, key: Event) {
         if self.mode == Mode::Normal {
             self.normal_mode(key);
         } else {
