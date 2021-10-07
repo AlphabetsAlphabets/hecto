@@ -5,7 +5,7 @@ use super::editor::Position;
 use crossterm::execute;
 use crossterm::cursor;
 use crossterm::style::{Color, SetBackgroundColor, SetForegroundColor};
-use crossterm::terminal::{enable_raw_mode, Clear, ClearType};
+use crossterm::terminal::{enable_raw_mode, Clear, ClearType, size}; 
 
 pub struct Size {
     pub width: u16,
@@ -19,11 +19,11 @@ pub struct Terminal {
 
 impl Terminal {
     pub fn new() -> Result<Self, std::io::Error> {
-        let size = termion::terminal_size()?;
+        let size = size().unwrap();
         let term = Self {
             size: Size {
-                width: size.0,
-                height: size.1.saturating_sub(2),
+                width: size.0 - 1,
+                height: size.1.saturating_sub(3),
             },
             stdout: stdout()
         };
@@ -69,5 +69,10 @@ impl Terminal {
 
     pub fn reset_bg_color(&mut self) {
         execute!(self.stdout, SetBackgroundColor(Color::Reset));
+    }
+
+    pub fn change_cursor_shape(&mut self, cursor_shape: cursor::CursorShape) {
+        let cursor_shape = cursor::SetCursorShape(cursor_shape);
+        execute!(self.stdout, cursor_shape).unwrap();
     }
 }

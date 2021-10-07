@@ -13,7 +13,9 @@ use super::rows::Row;
 use super::document;
 use document::Document;
 
+use crossterm::execute;
 use crossterm::style::Color;
+use crossterm::cursor::CursorShape;
 use crossterm::terminal::disable_raw_mode;
 use crossterm::event::{read, poll, KeyCode as Key, KeyEvent, Event, KeyModifiers as Mod};
 
@@ -85,6 +87,8 @@ impl Editor {
             eprintln!("{}", error);
         };
 
+        self.terminal.change_cursor_shape(CursorShape::Block);
+
         loop {
             if self.should_quit {
                 self.terminal.clear_screen();
@@ -112,11 +116,13 @@ impl Editor {
     fn process_keypress(&mut self) -> Result<(), std::io::Error> {
         let pressed_key = read().unwrap();
         match pressed_key {
-            Event::Key(KeyEvent {
-                code: Key::Esc,
-                ..
-            }) => self.change_mode(Mode::Normal),
-            _ => self.check_mode(pressed_key),
+            Event::Key(event) => match event.code {
+                Key::Esc => {
+                    self.change_mode(Mode::Normal);
+                }
+                _ => self.check_mode(pressed_key),
+            }
+            _ => (),
         };
 
         self.scroll();
@@ -260,13 +266,18 @@ impl Editor {
                 Key::Char(':') => todo!("Implement command mode."),
 
                 // changing modes
-                Key::Char('i') => self.change_mode(Mode::Insert),
+                Key::Char('i') =>  {
+                    self.terminal.change_cursor_shape(CursorShape::Line);
+                    self.change_mode(Mode::Insert);
+                }
+
                 Key::Char('A') => {
                     let row = self.document.row(y).unwrap();
                     x = row.len;
+
+                    self.terminal.change_cursor_shape(CursorShape::Line);
                     self.change_mode(Mode::Insert);
                 },
-
 
                 Key::Char('q') => if event.modifiers.contains(Mod::CONTROL) {
                     self.should_quit = true;
@@ -301,7 +312,10 @@ impl Editor {
     fn insert_mode(&mut self, key: Event) {
         match key {
             Event::Key(event) => match event.code {
-                Key::Esc => self.change_mode(Mode::Command),
+                Key::Esc => {
+                    self.terminal.change_cursor_shape(CursorShape::Block);
+                    self.change_mode(Mode::Command);
+                },
                 Key::Backspace => {
                     self.document.backspace(&self.cursor_position);
                     let h_key_event = self.create_event(Key::Char('h'), Mod::NONE);
@@ -346,8 +360,10 @@ impl Editor {
 
     fn check_mode(&mut self, key: Event) {
         if self.mode == Mode::Normal {
+            self.terminal.change_cursor_shape(CursorShape::Block);
             self.normal_mode(key);
         } else {
+            self.terminal.change_cursor_shape(CursorShape::Line);
             self.insert_mode(key);
         }
     }
