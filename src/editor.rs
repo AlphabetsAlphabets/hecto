@@ -17,6 +17,7 @@ use termion::color::Rgb;
 use termion::event::Key;
 
 use crossterm::style::Color;
+use crossterm::terminal::disable_raw_mode;
 
 const STATUS_FG_COLOUR: Color = Color::Rgb { r: 63, g: 63, b: 63 };
 const STATUS_BAR_BG_COLOUR: Color = Color::Rgb { r: 239, g: 239, b: 239 };
@@ -89,6 +90,7 @@ impl Editor {
         loop {
             if self.should_quit {
                 self.terminal.clear_screen();
+                disable_raw_mode().unwrap();
                 break;
             } else {
                 self.draw_rows();
