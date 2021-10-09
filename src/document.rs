@@ -97,9 +97,7 @@ impl Document {
 
     fn truncate_and_open_file(&self) -> Result<fs::File, std::io::Error> {
         let mut file = fs::OpenOptions::new();
-        file.write(true)
-            .truncate(true)
-            .open(&self.filename)
+        file.write(true).truncate(true).open(&self.filename)
     }
 
     pub fn save_file(&mut self) {
@@ -108,6 +106,6 @@ impl Document {
                 let string = format!("{}\n", row.string);
                 file.write_all(string.as_bytes()).unwrap();
             }
-        }     
+        }
     }
 }

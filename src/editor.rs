@@ -13,14 +13,22 @@ use super::rows::Row;
 use super::document;
 use document::Document;
 
+use crossterm::cursor::CursorShape;
+use crossterm::event::{poll, read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod};
 use crossterm::execute;
 use crossterm::style::Color;
-use crossterm::cursor::CursorShape;
 use crossterm::terminal::disable_raw_mode;
-use crossterm::event::{read, poll, KeyCode as Key, KeyEvent, Event, KeyModifiers as Mod};
 
-const STATUS_FG_COLOUR: Color = Color::Rgb { r: 63, g: 63, b: 63 };
-const STATUS_BAR_BG_COLOUR: Color = Color::Rgb { r: 239, g: 239, b: 239 };
+const STATUS_FG_COLOUR: Color = Color::Rgb {
+    r: 63,
+    g: 63,
+    b: 63,
+};
+const STATUS_BAR_BG_COLOUR: Color = Color::Rgb {
+    r: 239,
+    g: 239,
+    b: 239,
+};
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Default)]
@@ -87,14 +95,15 @@ impl Editor {
             eprintln!("{}", error);
         };
 
-        self.terminal.change_cursor_shape(CursorShape::Block);
-
         loop {
+            let key = self.create_event(Key::Null, Mod::NONE);
+            self.check_mode(key);
+
             if self.should_quit {
                 self.terminal.clear_screen();
                 disable_raw_mode().unwrap();
                 break;
-            } else {
+            } else if self.mode != Mode::Command {
                 self.draw_rows();
                 self.draw_status_bar();
                 self.draw_message_bar();
@@ -121,7 +130,7 @@ impl Editor {
                     self.change_mode(Mode::Normal);
                 }
                 _ => self.check_mode(pressed_key),
-            }
+            },
             _ => (),
         };
 
@@ -263,11 +272,10 @@ impl Editor {
                 }
                 Key::Char('s') => x = width.saturating_sub(1),
 
-                Key::Char(':') => todo!("Implement command mode."),
+                Key::Char(':') => self.change_mode(Mode::Command),
 
                 // changing modes
-                Key::Char('i') =>  {
-                    self.terminal.change_cursor_shape(CursorShape::Line);
+                Key::Char('i') => {
                     self.change_mode(Mode::Insert);
                 }
 
@@ -275,17 +283,18 @@ impl Editor {
                     let row = self.document.row(y).unwrap();
                     x = row.len;
 
-                    self.terminal.change_cursor_shape(CursorShape::Line);
                     self.change_mode(Mode::Insert);
-                },
+                }
 
-                Key::Char('q') => if event.modifiers.contains(Mod::CONTROL) {
-                    self.should_quit = true;
-                },
+                Key::Char('q') => {
+                    if event.modifiers.contains(Mod::CONTROL) {
+                        self.should_quit = true;
+                    }
+                }
 
                 _ => (),
             },
-            _ => ()
+            _ => (),
         }
 
         // adjusts the width the the length of the row
@@ -306,16 +315,15 @@ impl Editor {
     }
 
     fn command_mode(&mut self, key: Event) {
-        todo!("\n\nIMPLEMENT COMMNAD MODE\n\n");
+        self.terminal.show_command_window();
     }
 
     fn insert_mode(&mut self, key: Event) {
         match key {
             Event::Key(event) => match event.code {
                 Key::Esc => {
-                    self.terminal.change_cursor_shape(CursorShape::Block);
-                    self.change_mode(Mode::Command);
-                },
+                    self.change_mode(Mode::Normal);
+                }
                 Key::Backspace => {
                     self.document.backspace(&self.cursor_position);
                     let h_key_event = self.create_event(Key::Char('h'), Mod::NONE);
@@ -329,21 +337,20 @@ impl Editor {
                     self.normal_mode(j_key_event);
                     self.normal_mode(zero_key_event);
                 }
+                Key::Tab => {
+                    let space_key_event = self.create_event(Key::Char(' '), Mod::NONE);
+
+                    self.insert_mode(space_key_event);
+                    self.insert_mode(space_key_event);
+                    self.insert_mode(space_key_event);
+                    self.insert_mode(space_key_event);
+                }
                 Key::Char(c) => {
-                    if c == '\t' {
-                        let space_key_event = self.create_event(Key::Char(' '), Mod::NONE);
+                    self.document.insert(c, &self.cursor_position);
+                    let l_key_event = self.create_event(Key::Char('l'), Mod::NONE);
 
-                        self.insert_mode(space_key_event);
-                        self.insert_mode(space_key_event);
-                        self.insert_mode(space_key_event);
-                        self.insert_mode(space_key_event);
-                    } else {
-                        self.document.insert(c, &self.cursor_position);
-                        let l_key_event = self.create_event(Key::Char('l'), Mod::NONE);
-
-                        self.normal_mode(l_key_event);
-                    }
-                },
+                    self.normal_mode(l_key_event);
+                }
                 _ => (),
             },
             _ => (),
@@ -357,11 +364,12 @@ impl Editor {
         })
     }
 
-
     fn check_mode(&mut self, key: Event) {
         if self.mode == Mode::Normal {
             self.terminal.change_cursor_shape(CursorShape::Block);
             self.normal_mode(key);
+        } else if self.mode == Mode::Command {
+            self.command_mode(key);
         } else {
             self.terminal.change_cursor_shape(CursorShape::Line);
             self.insert_mode(key);
