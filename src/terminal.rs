@@ -86,7 +86,7 @@ impl Terminal {
         execute!(self.stdout, cursor_shape).unwrap();
     }
 
-    pub fn show_command_window(&mut self) {
+    pub fn show_command_window(&mut self) -> Window {
         let doc_height = self.size.height as f32;
         let doc_width = self.size.width as f32;
 
@@ -96,8 +96,7 @@ impl Terminal {
         let y1 = (doc_height * 0.2) as u16;
         let y2 = (doc_height * 0.8) as u16;
 
-        let mut window = Window::new(x1, x2, y1, y2);
-        window.draw_command_window(&mut self.stdout);
-        window.draw_all(&mut self.stdout);
+        let window = Window::new(x1, x2, y1, y2);
+        window
     }
 }

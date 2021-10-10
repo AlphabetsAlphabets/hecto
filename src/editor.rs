@@ -1,10 +1,12 @@
 use std::env;
+use std::io::stdout;
 use std::time::Duration;
 use std::time::Instant;
 
 use super::terminal;
 use terminal::Terminal;
 
+use super::window::Window;
 use super::modes::Mode;
 use super::status_message::StatusMessage;
 
@@ -28,6 +30,7 @@ const STATUS_BAR_BG_COLOUR: Color = Color::Rgb {
     g: 239,
     b: 239,
 };
+
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Default)]
@@ -327,7 +330,31 @@ impl Editor {
     }
 
     fn command_mode(&mut self, key: Event) {
-        self.terminal.show_command_window();
+        let mut stdout = stdout();
+        let mut window = self.terminal.show_command_window();
+        window.draw_command_window(&mut stdout);
+        window.draw_all(&mut stdout);
+
+        let Window { x2, y1: mut cur_y, y2, .. } = window;
+
+        cur_y += 1;
+        
+        match key {
+            Event::Key(event) => match event.code {
+                Key::Char('j') => {
+                    if cur_y > y2 {
+                        cur_y += 1;
+                    }
+                },
+                Key::Char('k') => {
+                    if cur_y < y2 {
+                        cur_y -= 1;
+                    }
+                },
+                _ => (),
+            },
+            _ => (),
+        }
     }
 
     fn insert_mode(&mut self, key: Event) {
