@@ -1,11 +1,13 @@
-use std::io::{self, stdout, Stdout, Write};
+use std::io::{stdout, Stdout, Write};
 
 use super::editor::Position;
 
 use crossterm::cursor;
-use crossterm::style::{Color, Print, SetBackgroundColor, SetForegroundColor};
+use crossterm::execute;
+use crossterm::style::{Color, SetBackgroundColor, SetForegroundColor};
 use crossterm::terminal::{enable_raw_mode, size, Clear, ClearType};
-use crossterm::{execute, queue, QueueableCommand};
+
+use super::window::Window;
 
 pub struct Size {
     pub width: u16,
@@ -30,6 +32,14 @@ impl Terminal {
 
         enable_raw_mode().unwrap();
         Ok(term)
+    }
+
+    pub fn update_dimensions(&mut self) {
+        let size = size().unwrap();
+        self.size = Size {
+            width: size.0.saturating_sub(1),
+            height: size.1.saturating_sub(3),
+        };
     }
 
     pub fn clear_screen(&mut self) {
@@ -60,15 +70,15 @@ impl Terminal {
     }
 
     pub fn set_fg_color(&mut self, color: Color) {
-        execute!(self.stdout, SetForegroundColor(color));
+        execute!(self.stdout, SetForegroundColor(color)).unwrap();
     }
 
     pub fn reset_fg_color(&mut self) {
-        execute!(self.stdout, SetForegroundColor(Color::Reset));
+        execute!(self.stdout, SetForegroundColor(Color::Reset)).unwrap();
     }
 
     pub fn reset_bg_color(&mut self) {
-        execute!(self.stdout, SetBackgroundColor(Color::Reset));
+        execute!(self.stdout, SetBackgroundColor(Color::Reset)).unwrap();
     }
 
     pub fn change_cursor_shape(&mut self, cursor_shape: cursor::CursorShape) {
@@ -80,35 +90,14 @@ impl Terminal {
         let doc_height = self.size.height as f32;
         let doc_width = self.size.width as f32;
 
-        // x * n, if n is bigger moves cursor to right
         let x1 = (doc_width * 0.2) as u16;
         let x2 = (doc_width * 0.8) as u16;
 
-        let mut y1 = (doc_height * 0.2) as u16;
+        let y1 = (doc_height * 0.2) as u16;
         let y2 = (doc_height * 0.8) as u16;
 
-        let hori_line = (x2 - x1) as usize;
-        let vert_line = (y2 - y1) as usize;
-
-        let hori_fill = "-".repeat(hori_line - 2);
-        let hori_border = format!("+{}+", hori_fill);
-
-        // Handles the top and bottom
-        execute!(
-            self.stdout,
-            cursor::MoveTo(x1, y1),
-            Print(&hori_border),
-            cursor::MoveTo(x1, y2),
-            Print(&hori_border),
-        )
-        .unwrap();
-
-        y1 += 1;
-        while y1 <= vert_line as u16 {
-            execute!(self.stdout, cursor::MoveTo(x1, y1 as u16), Print("|")).unwrap();
-            y1 += 1;
-        }
-
-        self.stdout.flush();
+        let mut window = Window::new(x1, x2, y1, y2);
+        window.draw_command_window(&mut self.stdout);
+        window.draw_all(&mut self.stdout);
     }
 }

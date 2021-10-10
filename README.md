@@ -1,5 +1,5 @@
 # Hecto
-Hecto is my attempt at making a very basic clone of vim/nvim. Currently only available on Linux.
+Hecto is my attempt at making a very basic clone of vim/nvim.
 
 
 # Keybindings
@@ -15,7 +15,7 @@ Since there aren't a lot of keybindings in Hecto (yet), a dedicated wikipage is 
 Will be doing that. You can't use the arrow keys because I was too lazy to implement them. It's not hard, just a lot of typing.
 
 `s, S`  
-moving to the start and end of a line respectively.
+moving to the start of the first character in each line, and the final character of each line respectively.
 
 `w, b`  
 Moving forward a character until the next non-ascii alphabetic character, and moving backward a character until the first non-ascii alphabetic character is found respectively.

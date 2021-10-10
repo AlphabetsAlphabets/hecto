@@ -14,8 +14,7 @@ use super::document;
 use document::Document;
 
 use crossterm::cursor::CursorShape;
-use crossterm::event::{poll, read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod};
-use crossterm::execute;
+use crossterm::event::{read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod};
 use crossterm::style::Color;
 use crossterm::terminal::disable_raw_mode;
 
@@ -89,6 +88,18 @@ impl Editor {
         Ok(())
     }
 
+    fn check_mode(&mut self, key: Event) {
+        if self.mode == Mode::Normal {
+            self.terminal.change_cursor_shape(CursorShape::Block);
+            self.normal_mode(key);
+        } else if self.mode == Mode::Command {
+            self.command_mode(key);
+        } else {
+            self.terminal.change_cursor_shape(CursorShape::Line);
+            self.insert_mode(key);
+        }
+    }
+
     pub fn run(&mut self) {
         if let Err(error) = self.refresh_screen() {
             self.terminal.clear_screen();
@@ -104,6 +115,7 @@ impl Editor {
                 disable_raw_mode().unwrap();
                 break;
             } else if self.mode != Mode::Command {
+                self.terminal.update_dimensions();
                 self.draw_rows();
                 self.draw_status_bar();
                 self.draw_message_bar();
@@ -364,17 +376,6 @@ impl Editor {
         })
     }
 
-    fn check_mode(&mut self, key: Event) {
-        if self.mode == Mode::Normal {
-            self.terminal.change_cursor_shape(CursorShape::Block);
-            self.normal_mode(key);
-        } else if self.mode == Mode::Command {
-            self.command_mode(key);
-        } else {
-            self.terminal.change_cursor_shape(CursorShape::Line);
-            self.insert_mode(key);
-        }
-    }
 
     fn draw_welcome_message(&self) {
         let mut welcome_message = format!("Hecto -- version {}\r", VERSION);
