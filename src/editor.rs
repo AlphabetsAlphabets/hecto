@@ -6,9 +6,9 @@ use std::time::Instant;
 use super::terminal;
 use terminal::Terminal;
 
-use super::window::Window;
 use super::modes::Mode;
 use super::status_message::StatusMessage;
+use super::window::Window;
 
 use super::rows::Row;
 
@@ -53,6 +53,7 @@ pub struct Editor {
     cursor_position: Position,
     should_quit: bool,
     status: StatusMessage,
+    command_window_active: bool,
 }
 
 impl Editor {
@@ -83,6 +84,7 @@ impl Editor {
             terminal: Terminal::new().expect("Failed to initialize terminal."),
             cursor_position: Position { x: 0, y: 0 },
             status: StatusMessage::from(initial_status),
+            command_window_active: false,
         }
     }
 
@@ -333,24 +335,21 @@ impl Editor {
         let mut stdout = stdout();
         let mut window = self.terminal.show_command_window();
         window.draw_command_window(&mut stdout);
+        self.command_window_active = true;
         window.draw_all(&mut stdout);
 
-        let Window { x2, y1: mut cur_y, y2, .. } = window;
+        let Window { mut rows, .. } = window;
+        println!("{:?}", rows);
+        todo!();
 
-        cur_y += 1;
-        
         match key {
             Event::Key(event) => match event.code {
-                Key::Char('j') => {
-                    if cur_y > y2 {
-                        cur_y += 1;
+                Key::Char(c) => {
+                    let len = rows.len();
+                    if let Some(entry) = rows.get_mut(len.saturating_sub(1)) {
+                        entry.insert(&self.cursor_position, c);
                     }
-                },
-                Key::Char('k') => {
-                    if cur_y < y2 {
-                        cur_y -= 1;
-                    }
-                },
+                }
                 _ => (),
             },
             _ => (),
@@ -402,7 +401,6 @@ impl Editor {
             modifiers: modifier,
         })
     }
-
 
     fn draw_welcome_message(&self) {
         let mut welcome_message = format!("Hecto -- version {}\r", VERSION);

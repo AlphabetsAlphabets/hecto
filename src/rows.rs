@@ -3,7 +3,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use super::editor::Position;
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct Row {
     pub string: String,
     pub len: usize,

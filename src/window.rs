@@ -1,8 +1,8 @@
 use std::io::{Stdout, Write};
 
-use crossterm::{cursor, queue};
-use crossterm::style::Print;
 use crossterm::event::{Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod};
+use crossterm::style::Print;
+use crossterm::{cursor, queue};
 
 use super::rows::Row;
 
@@ -11,7 +11,7 @@ pub struct Window {
     pub x2: u16,
     pub y1: u16,
     pub y2: u16,
-    rows: Vec<Row>,
+    pub rows: Vec<Row>,
 }
 
 impl Window {
@@ -31,20 +31,14 @@ impl Window {
     }
 
     pub fn move_cursor_in_window(&mut self, key: Event) {
-        let Self { x1, x2, y1, y2, ..  } = *self;
+        let Self { x1, x2, y1, y2, .. } = *self;
         let cur_x = x1 + 1;
         let cur_y = y1 + 1;
 
         match key {
             Event::Key(event) => match event.code {
-                Key::Char('j') => {
-                    if cur_x < x2 {
-                    }
-                },
-                Key::Char('k') => {
-                    if cur_y < y2 {
-                    }
-                },
+                Key::Char('j') => if cur_x < x2 {},
+                Key::Char('k') => if cur_y < y2 {},
                 _ => (),
             },
             _ => (),
@@ -52,7 +46,7 @@ impl Window {
     }
 
     pub fn draw_command_window(&mut self, stdout: &mut Stdout) {
-        let Self { x1, x2, y1, y2, ..  } = *self;
+        let Self { x1, x2, y1, y2, .. } = *self;
 
         let hori_line = (x2 - x1) as usize;
         let vert_line = (y2 - y1) as usize;
@@ -72,8 +66,9 @@ impl Window {
             Print(&hori_border),
             cursor::MoveTo(x1, y2 - 2),
             Print(&text_entry_border),
-            cursor::MoveTo(x1, y1),
-        ).unwrap();
+            cursor::MoveTo(x1, y2),
+        )
+        .unwrap();
 
         let mut y = y1 + 1;
         let commands = vec!["Save file".to_string(), "Quit".to_string()];
@@ -89,25 +84,47 @@ impl Window {
 
             let text = if num < commands.len() {
                 let spaces = " ".repeat((x2 - x1 - repeat - 2).into());
-                format!("{}{}", commands.get(num).unwrap(), spaces)
+                let row = format!("|{}{}|", commands.get(num).unwrap(), spaces);
+
+                self.rows.push(Row::from(row.clone()));
+                row
+            } else if y == y2 - 2 {
+                let spaces = "-".repeat((x2 - x1 - 2).into());
+                let row = format!("+{}+", spaces);
+
+                self.rows.push(Row::from(row.clone()));
+                row
             } else {
                 let spaces = " ".repeat((x2 - x1 - 2).into());
-                format!("{}", spaces)
+                let row = format!("|{}|", spaces);
+
+                self.rows.push(Row::from(row.clone()));
+                row
             };
 
             queue!(
                 stdout,
                 cursor::MoveTo(x1, y as u16),
-                Print("|"),
-                cursor::MoveTo(x1 + 1, y as u16),
                 Print(text),
-                Print("|"),
-            ).unwrap();
+            )
+            .unwrap();
 
             y += 1;
             num += 1;
         }
 
-        queue!(stdout, cursor::MoveTo(x1 + 1, y2 - 1), Print("-> ")).unwrap();
+        let spaces = " ".repeat((x2 - x1 - 5).into());
+        let border = format!("|-> {}|", spaces);
+        self.rows.push(Row::from(border.clone()));
+
+        queue!(
+            stdout,
+            // cursor::MoveTo(x1, y2 + 1),
+            // Print(&border),
+            cursor::MoveTo(x1, y2 - 1),
+            Print(border),
+            cursor::MoveTo(x1 + 4, y2 - 1),
+        )
+        .unwrap();
     }
 }
