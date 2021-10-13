@@ -1,7 +1,8 @@
 use std::env;
-use std::io::stdout;
+use std::io::{stdout, StdoutLock};
 use std::time::Duration;
 use std::time::Instant;
+use std::collections::HashMap;
 
 use super::terminal;
 use terminal::Terminal;
@@ -33,7 +34,7 @@ const STATUS_BAR_BG_COLOUR: Color = Color::Rgb {
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy, Debug)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
@@ -45,19 +46,20 @@ impl Position {
     }
 }
 
-pub struct Editor {
+pub struct Editor<'a> {
     mode: Mode,
     offset: Position,
     document: Document,
-    terminal: Terminal,
+    terminal: Terminal<'a>,
     cursor_position: Position,
     should_quit: bool,
     status: StatusMessage,
     command_window_active: bool,
+    windows: HashMap<String, Window>
 }
 
-impl Editor {
-    pub fn new() -> Self {
+impl<'a> Editor<'a> {
+    pub fn new(stdout: StdoutLock<'a>) -> Self {
         let args: Vec<String> = env::args().collect();
         let mut initial_status = "Press CTRL + Q to QUIT.".to_string();
         let document = if args.len() > 1 {
@@ -81,10 +83,11 @@ impl Editor {
             offset: Position::default(),
             should_quit: false,
             document,
-            terminal: Terminal::new().expect("Failed to initialize terminal."),
+            terminal: Terminal::new(stdout).expect("Failed to initialize terminal."),
             cursor_position: Position { x: 0, y: 0 },
             status: StatusMessage::from(initial_status),
             command_window_active: false,
+            windows: HashMap::default()
         }
     }
 
@@ -331,29 +334,55 @@ impl Editor {
         self.cursor_position = Position { x, y }
     }
 
-    fn command_mode(&mut self, key: Event) {
-        let mut stdout = stdout();
-        let mut window = self.terminal.show_command_window();
-        window.draw_command_window(&mut stdout);
-        self.command_window_active = true;
-        window.draw_all(&mut stdout);
+    pub fn show_command_window(&mut self) -> Window {
+        let doc_height = self.terminal.size().height as f32;
+        let doc_width = self.terminal.size().width as f32;
 
-        let Window { mut rows, .. } = window;
-        println!("{:?}", rows);
-        todo!();
+        let x1 = (doc_width * 0.2) as u16;
+        let x2 = (doc_width * 0.8) as u16;
+
+        let y1 = (doc_height * 0.2) as u16;
+        let y2 = (doc_height * 0.8) as u16;
+
+        let window = Window::new("command".to_string(), x1, x2, y1, y2);
+        window
+    }
+
+    fn command_mode(&mut self, key: Event) {
+        // makes sure that a new window isn't created unless necessary
+        let mut window = if !self.windows.contains_key("command") {
+            let mut window = self.show_command_window();
+            self.windows.insert(window.name.clone(), window.clone());
+            window
+        } else {
+            self.windows.get_mut("command").unwrap().clone()
+        };
+
+        if window.has_content_changed {
+            todo!("CONTENT CHANGED");
+            window.draw_all(&mut self.terminal.stdout);
+        } else if !window.has_been_drawn {
+            window.draw_window(&mut self.terminal.stdout);
+            window.draw_all(&mut self.terminal.stdout);
+        }
 
         match key {
             Event::Key(event) => match event.code {
                 Key::Char(c) => {
-                    let len = rows.len();
-                    if let Some(entry) = rows.get_mut(len.saturating_sub(1)) {
-                        entry.insert(&self.cursor_position, c);
+                    let len = window.rows.len();
+                    if let Some(entry) = window.rows.get_mut(len.saturating_sub(1)) {
+                        window.has_content_changed = true;
+                        entry.insert(&window.cursor_position, c);
+                        // todo!("command entry place");
                     }
                 }
                 _ => (),
             },
             _ => (),
         }
+
+        let mut command_window = self.windows.get_mut("command").unwrap();
+        command_window = &mut window.clone();
     }
 
     fn insert_mode(&mut self, key: Event) {

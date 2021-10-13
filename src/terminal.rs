@@ -1,4 +1,4 @@
-use std::io::{stdout, Stdout, Write};
+use std::io::{stdout, Stdout, StdoutLock, Write};
 
 use super::editor::Position;
 
@@ -14,20 +14,21 @@ pub struct Size {
     pub height: u16,
 }
 
-pub struct Terminal {
+pub struct Terminal<'a> {
     size: Size,
-    stdout: Stdout,
+    pub stdout: StdoutLock<'a>,
 }
 
-impl Terminal {
-    pub fn new() -> Result<Self, std::io::Error> {
+impl<'a> Terminal<'a> {
+    pub fn new(stdout: StdoutLock<'a>) -> Result<Self, std::io::Error> {
         let size = size().unwrap();
-        let term = Self {
+
+        let mut term = Self {
             size: Size {
                 width: size.0.saturating_sub(1),
                 height: size.1.saturating_sub(3),
             },
-            stdout: stdout(),
+            stdout,
         };
 
         enable_raw_mode().unwrap();
@@ -86,17 +87,4 @@ impl Terminal {
         execute!(self.stdout, cursor_shape).unwrap();
     }
 
-    pub fn show_command_window(&mut self) -> Window {
-        let doc_height = self.size.height as f32;
-        let doc_width = self.size.width as f32;
-
-        let x1 = (doc_width * 0.2) as u16;
-        let x2 = (doc_width * 0.8) as u16;
-
-        let y1 = (doc_height * 0.2) as u16;
-        let y2 = (doc_height * 0.8) as u16;
-
-        let window = Window::new(x1, x2, y1, y2);
-        window
-    }
 }
