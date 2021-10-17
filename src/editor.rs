@@ -3,6 +3,7 @@ use std::io::StdoutLock;
 use std::time::Duration;
 use std::time::Instant;
 
+use std::collections::HashMap;
 use super::terminal;
 use terminal::Terminal;
 
@@ -53,6 +54,7 @@ pub struct Editor<'a> {
     cursor_position: Position,
     should_quit: bool,
     status: StatusMessage,
+    windows: HashMap<String, Window>,
 }
 
 impl<'a> Editor<'a> {
@@ -83,6 +85,7 @@ impl<'a> Editor<'a> {
             terminal: Terminal::new(stdout).expect("Failed to initialize terminal."),
             cursor_position: Position { x: 0, y: 0 },
             status: StatusMessage::from(initial_status),
+            windows: HashMap::default(),
         }
     }
 
@@ -330,24 +333,53 @@ impl<'a> Editor<'a> {
     }
 
     pub fn show_command_window(&mut self) -> Window {
-        let doc_height = self.terminal.size().height as f32;
-        let doc_width = self.terminal.size().width as f32;
+        if let Some(window) = self.windows.get("command") {
+            window.clone()
+        } else {
+            let doc_height = self.terminal.size().height as f32;
+            let doc_width = self.terminal.size().width as f32;
 
-        let x1 = (doc_width * 0.2) as u16;
-        let x2 = (doc_width * 0.8) as u16;
+            let x1 = (doc_width * 0.2) as u16;
+            let x2 = (doc_width * 0.8) as u16;
 
-        let y1 = (doc_height * 0.2) as u16;
-        let y2 = (doc_height * 0.8) as u16;
+            let y1 = (doc_height * 0.2) as u16;
+            let y2 = (doc_height * 0.8) as u16;
 
-        let window = Window::new("command".to_string(), x1, x2, y1, y2);
-        window
+            Window::new("command".to_string(), x1, x2, y1, y2)
+        }
     }
 
     fn command_mode(&mut self, key: Event) {
-        // makes sure that a new window isn't created unless necessary
         let mut window = self.show_command_window();
         window.draw_window(&mut self.terminal.stdout);
         window.draw_all(&mut self.terminal.stdout);
+
+        let mut x = window.x1 as usize;
+        let width = window.x2 as usize;
+        let y = window.y2 as usize;
+
+        let cur_pos = Position { x, y };
+
+        match key {
+            Event::Key(event) => match event.code {
+                Key::Char(c) => {
+                    let len = window.rows.len().saturating_sub(1);
+                    let mut text_box = window.rows.get(len).unwrap().clone();
+
+                    text_box.insert(&cur_pos, c);
+                    window.rows.pop().unwrap();
+                    window.rows.push(text_box);
+
+                    if x < width {
+                        x += 1;
+                    }
+
+                    window.x1 = x as u16;
+                }
+                _ => (),
+            }
+            _ => ()
+        }
     }
 
     fn insert_mode(&mut self, key: Event) {

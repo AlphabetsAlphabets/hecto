@@ -75,8 +75,10 @@ impl Row {
         } else {
             let mut result: String = self.string[..].graphemes(true).take(at.x).collect();
             let remainder: String = self.string[..].graphemes(true).skip(at.x).collect();
+
             result.push(c);
             result.push_str(&remainder);
+
             self.string = result;
         }
 

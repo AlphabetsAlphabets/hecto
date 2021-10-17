@@ -114,7 +114,6 @@ impl Window {
             num += 1;
         }
 
-        self.draw_text_box(stdout);
         self.has_been_drawn = true;
         queue!(stdout, cursor::Show).unwrap();
     }
@@ -123,6 +122,7 @@ impl Window {
         let len = self.rows.len().saturating_sub(1);
         if !self.has_been_drawn {
             self.init_setup(stdout);
+            self.draw_text_box(stdout);
         } else if self.has_content_changed {
             let text = self.rows.get_mut(len).unwrap();
             todo!("\n\n------\n\n THE TEXT ENTRY THING WORKED\n-----");
