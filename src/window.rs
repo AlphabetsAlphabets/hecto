@@ -1,28 +1,28 @@
 use std::io::{Stdout, StdoutLock, Write};
 
-use crossterm::event::{Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod};
-use crossterm::style::Print;
 use crossterm::{cursor, queue};
+use crossterm::style::Print;
+use crossterm::event::{Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod};
 
 use super::editor::Position;
 use super::rows::Row;
 
 #[derive(Clone, Default, Debug)]
-pub struct Window<'a, 'b> {
-    pub name: &'a str,
+pub struct Window {
+    pub name: String,
     pub x1: u16,
     pub x2: u16,
     pub y1: u16,
     pub y2: u16,
-    pub rows: Vec<Row<'b>>,
+    pub rows: Vec<Row>,
     pub cursor_position: Position,
     pub has_been_drawn: bool,
     pub has_content_changed: bool,
 }
 
-impl<'a, 'b> Window<'a, 'b> {
+impl Window {
     /// Param order: x1, x2, y1, y2
-    pub fn new(name: &'a str, x1: u16, x2: u16, y1: u16, y2: u16) -> Self {
+    pub fn new(name: String, x1: u16, x2: u16, y1: u16, y2: u16) -> Self {
         Self {
             name,
             x1,
@@ -65,7 +65,10 @@ impl<'a, 'b> Window<'a, 'b> {
 
     pub fn init_setup(&mut self, stdout: &mut StdoutLock) {
         let Self { x1, x2, y1, y2, .. } = *self;
+    }
 
+    pub fn draw_command_window(&mut self, stdout: &mut Stdout) {
+        let Self { x1, x2, y1, y2, ..  } = *self;
         let hori_line = (x2 - x1) as usize;
 
         let hori_fill = "-".repeat(hori_line - 2);
@@ -78,9 +81,8 @@ impl<'a, 'b> Window<'a, 'b> {
             cursor::MoveTo(x1, y1),
             Print(&hori_border),
             cursor::MoveTo(x1, y2 - 2),
-            Print(&hori_border),
-        )
-        .unwrap();
+            cursor::MoveTo(x1, y1),
+        ).unwrap();
 
         let mut y = y1 + 1;
         let commands = vec!["Save file".to_string(), "Quit".to_string()];
@@ -97,25 +99,25 @@ impl<'a, 'b> Window<'a, 'b> {
             // results window
             let text = if num < commands.len() {
                 let spaces = " ".repeat((x2 - x1 - repeat - 2).into());
-                let row = format!("|{}{}|", commands.get(num).unwrap(), spaces);
-
-                self.rows.push(Row::from(row.clone().as_str()));
-                row
+                format!("{}{}", commands.get(num).unwrap(), spaces)
             } else {
                 let spaces = " ".repeat((x2 - x1 - 2).into());
-                let row = format!("|{}|", spaces);
-
-                self.rows.push(Row::from(row.clone().as_str()));
-                row
+                format!("{}", spaces)
             };
 
-            queue!(stdout, cursor::MoveTo(x1, y as u16), Print(text)).unwrap();
+            queue!(
+                stdout,
+                cursor::MoveTo(x1, y as u16),
+                Print("|"),
+                cursor::MoveTo(x1 + 1, y as u16),
+                Print(text),
+                Print("|"),
+            ).unwrap();
 
             y += 1;
             num += 1;
         }
 
-        self.draw_text_box(stdout);
         self.has_been_drawn = true;
         queue!(stdout, cursor::Show).unwrap();
     }

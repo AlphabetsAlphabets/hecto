@@ -7,9 +7,9 @@ use std::collections::HashMap;
 use super::terminal;
 use terminal::Terminal;
 
+use super::window::Window;
 use super::modes::Mode;
 use super::status_message::StatusMessage;
-use super::window::Window;
 
 use super::rows::Row;
 
@@ -46,18 +46,17 @@ impl Position {
     }
 }
 
-pub struct Editor<'a, 'b, 'c, 'd, 'e> {
+pub struct Editor<'a> {
     mode: Mode,
     offset: Position,
-    document: Document<'c>,
+    document: Document,
     terminal: Terminal<'a>,
     cursor_position: Position,
     should_quit: bool,
     status: StatusMessage,
-    drawn_windows: HashMap<&'b str, Window<'d, 'e>>,
 }
 
-impl<'a, 'b, 'c, 'd, 'e> Editor<'a, 'b, 'c, 'd, 'e> {
+impl<'a> Editor<'a> {
     pub fn new(stdout: StdoutLock<'a>) -> Self {
         let args: Vec<String> = env::args().collect();
         let mut initial_status = "Press CTRL + Q to QUIT.".to_string();
@@ -85,7 +84,6 @@ impl<'a, 'b, 'c, 'd, 'e> Editor<'a, 'b, 'c, 'd, 'e> {
             terminal: Terminal::new(stdout).expect("Failed to initialize terminal."),
             cursor_position: Position { x: 0, y: 0 },
             status: StatusMessage::from(initial_status),
-            drawn_windows: HashMap::default(),
         }
     }
 
@@ -346,15 +344,7 @@ impl<'a, 'b, 'c, 'd, 'e> Editor<'a, 'b, 'c, 'd, 'e> {
     }
 
     fn command_mode(&mut self, key: Event) {
-        let mut window = Window::default();
-        if !self.drawn_windows.contains_key("command") {
-            window = self.show_command_window();
-            window.draw_window(&mut self.terminal.stdout);
-            window.draw_all(&mut self.terminal.stdout);
-            self.drawn_windows.insert("command", window);
-        } else {
-            window = self.drawn_windows.get_mut("command").unwrap();
-        }
+        let mut window = self.show_command_window();
     }
 
     fn insert_mode(&mut self, key: Event) {
@@ -402,6 +392,7 @@ impl<'a, 'b, 'c, 'd, 'e> Editor<'a, 'b, 'c, 'd, 'e> {
             modifiers: modifier,
         })
     }
+
 
     fn draw_welcome_message(&self) {
         let mut welcome_message = format!("Hecto -- version {}\r", VERSION);

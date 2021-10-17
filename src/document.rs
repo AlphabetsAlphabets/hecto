@@ -7,13 +7,13 @@ use super::rows::Row;
 use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Default, Clone)]
-pub struct Document<'a> {
-    pub rows: Vec<Row<'a>>,
+pub struct Document {
+    pub rows: Vec<Row>,
     pub filename: String,
 }
 
 // Utility functions
-impl<'a> Document<'a> {
+impl Document {
     pub fn open(filename: &str) -> Result<Self, std::io::Error> {
         let contents = fs::read_to_string(filename)?;
         let mut rows = Vec::new();
@@ -43,11 +43,11 @@ impl<'a> Document<'a> {
 }
 
 // Functions related to typing
-impl<'a> Document<'a> {
+impl Document {
     pub fn insert(&mut self, c: char, at: &Position) {
         if self.rows.is_empty() {
             let c = c.to_string();
-            let row = Row::from(c);
+            let row = Row::from(c.to_string().as_str());
             self.rows.push(row);
         } else {
             let row = self.rows.get_mut(at.y).unwrap();
@@ -90,7 +90,7 @@ impl<'a> Document<'a> {
             let remainder: String = current_row.string.graphemes(true).skip(at.x).collect();
 
             let new_row = format!("{}{}", current, remainder);
-            let new_row = Row::from(new_row);
+            let new_row = Row::from(new_row.as_str());
             *current_row = new_row;
         }
     }

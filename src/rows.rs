@@ -4,15 +4,15 @@ use unicode_segmentation::UnicodeSegmentation;
 use super::editor::Position;
 
 #[derive(Default, Clone, Debug)]
-pub struct Row<'a> {
-    pub string: &'a str,
+pub struct Row {
+    pub string: String,
     pub len: usize,
 }
 
-impl<'a> From<&str> for Row<'a> {
-    fn from(s: &'a str) -> Self {
+impl From<&str> for Row {
+    fn from(s: &str) -> Self {
         let mut row = Self {
-            string: s,
+            string: String::from(s),
             len: 0,
         };
 
@@ -22,7 +22,7 @@ impl<'a> From<&str> for Row<'a> {
 }
 
 // Utility
-impl<'a> Row<'a> {
+impl Row {
     pub fn render(&self, start: usize, end: usize) -> String {
         let end = cmp::min(end, self.string.len());
         let start = cmp::min(start, end);
@@ -44,7 +44,7 @@ impl<'a> Row<'a> {
         let beginning: String = self.string.graphemes(true).take(at).collect();
         let remainder: String = self.string.graphemes(true).skip(at).collect();
 
-        self.string = &beginning;
+        self.string = beginning;
         self.update_len();
         Self::from(&remainder[..])
     }
@@ -59,18 +59,18 @@ impl<'a> Row<'a> {
 }
 
 // Text related
-impl<'a> Row<'a> {
+impl Row {
     pub fn insert(&mut self, at: &Position, c: char) {
         if at.x >= self.len {
             let mut string = self.string.clone().to_string();
             string.push(c);
-            self.string = &string;
+            self.string = string;
         } else {
             let mut result: String = self.string[..].graphemes(true).take(at.x).collect();
             let remainder: String = self.string[..].graphemes(true).skip(at.x).collect();
             result.push(c);
             result.push_str(&remainder);
-            self.string = &result;
+            self.string = result;
         }
 
         self.update_len();
