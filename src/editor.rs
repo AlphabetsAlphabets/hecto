@@ -1,8 +1,7 @@
 use std::env;
-use std::io::{stdout, StdoutLock};
+use std::io::StdoutLock;
 use std::time::Duration;
 use std::time::Instant;
-use std::collections::HashMap;
 
 use super::terminal;
 use terminal::Terminal;
@@ -340,11 +339,15 @@ impl<'a> Editor<'a> {
         let y1 = (doc_height * 0.2) as u16;
         let y2 = (doc_height * 0.8) as u16;
 
-        Window::new("command".to_string(), x1, x2, y1, y2)
+        let window = Window::new("command".to_string(), x1, x2, y1, y2);
+        window
     }
 
     fn command_mode(&mut self, key: Event) {
+        // makes sure that a new window isn't created unless necessary
         let mut window = self.show_command_window();
+        window.draw_window(&mut self.terminal.stdout);
+        window.draw_all(&mut self.terminal.stdout);
     }
 
     fn insert_mode(&mut self, key: Event) {

@@ -1,4 +1,4 @@
-use std::io::{stdout, Stdout, StdoutLock, Write};
+use std::io::{StdoutLock, Write};
 
 use super::editor::Position;
 
@@ -6,8 +6,6 @@ use crossterm::cursor;
 use crossterm::execute;
 use crossterm::style::{Color, SetBackgroundColor, SetForegroundColor};
 use crossterm::terminal::{enable_raw_mode, size, Clear, ClearType};
-
-use super::window::Window;
 
 pub struct Size {
     pub width: u16,
@@ -23,7 +21,7 @@ impl<'a> Terminal<'a> {
     pub fn new(stdout: StdoutLock<'a>) -> Result<Self, std::io::Error> {
         let size = size().unwrap();
 
-        let mut term = Self {
+        let term = Self {
             size: Size {
                 width: size.0.saturating_sub(1),
                 height: size.1.saturating_sub(3),

@@ -21,6 +21,15 @@ impl From<&str> for Row {
     }
 }
 
+impl From<String> for Row {
+    fn from(s: String) -> Self {
+        let mut row = Self { string: s, len: 0 };
+
+        row.update_len();
+        row
+    }
+}
+
 // Utility
 impl Row {
     pub fn render(&self, start: usize, end: usize) -> String {
@@ -54,7 +63,7 @@ impl Row {
     }
 
     pub fn contents(&self) -> String {
-        self.string.clone().to_string()
+        self.string.clone()
     }
 }
 
@@ -62,9 +71,7 @@ impl Row {
 impl Row {
     pub fn insert(&mut self, at: &Position, c: char) {
         if at.x >= self.len {
-            let mut string = self.string.clone().to_string();
-            string.push(c);
-            self.string = string;
+            self.string.push(c);
         } else {
             let mut result: String = self.string[..].graphemes(true).take(at.x).collect();
             let remainder: String = self.string[..].graphemes(true).skip(at.x).collect();
