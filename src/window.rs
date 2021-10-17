@@ -8,21 +8,21 @@ use super::editor::Position;
 use super::rows::Row;
 
 #[derive(Clone, Default, Debug)]
-pub struct Window {
-    pub name: String,
+pub struct Window<'a, 'b> {
+    pub name: &'a str,
     pub x1: u16,
     pub x2: u16,
     pub y1: u16,
     pub y2: u16,
-    pub rows: Vec<Row>,
+    pub rows: Vec<Row<'b>>,
     pub cursor_position: Position,
     pub has_been_drawn: bool,
     pub has_content_changed: bool,
 }
 
-impl Window {
+impl<'a, 'b> Window<'a, 'b> {
     /// Param order: x1, x2, y1, y2
-    pub fn new(name: String, x1: u16, x2: u16, y1: u16, y2: u16) -> Self {
+    pub fn new(name: &'a str, x1: u16, x2: u16, y1: u16, y2: u16) -> Self {
         Self {
             name,
             x1,
@@ -44,7 +44,7 @@ impl Window {
         let Self { x1, x2, y1, y2, .. } = *self;
         let text_box_border = "-".repeat((x2 - x1 - 2).into());
         let text_entry_border = format!("+{}+", text_box_border);
-        self.rows.push(Row::from(text_entry_border.clone()));
+        self.rows.push(Row::from(text_entry_border.clone().as_str()));
 
         let spaces = " ".repeat((x2 - x1 - 5).into());
         let text_box = format!("|-> {}|", spaces);
@@ -99,13 +99,13 @@ impl Window {
                 let spaces = " ".repeat((x2 - x1 - repeat - 2).into());
                 let row = format!("|{}{}|", commands.get(num).unwrap(), spaces);
 
-                self.rows.push(Row::from(row.clone()));
+                self.rows.push(Row::from(row.clone().as_str()));
                 row
             } else {
                 let spaces = " ".repeat((x2 - x1 - 2).into());
                 let row = format!("|{}|", spaces);
 
-                self.rows.push(Row::from(row.clone()));
+                self.rows.push(Row::from(row.clone().as_str()));
                 row
             };
 
@@ -124,6 +124,7 @@ impl Window {
         let len = self.rows.len().saturating_sub(1);
         if !self.has_been_drawn {
             self.init_setup(stdout);
+            self.has_been_drawn = true;
         } else if self.has_content_changed {
             let mut text = self.rows.get_mut(len).unwrap();
             todo!("\n\n------\n\n THE TEXT ENTRY THING WORKED\n-----");
