@@ -48,7 +48,7 @@ impl Window {
         let spaces = " ".repeat((x2 - x1 - 5).into());
         let text_box = format!("|-> {}|", spaces);
 
-        self.rows.push(Row::from(text_box.get(4..).unwrap().clone()));
+        self.rows.push(Row::from(text_box.clone()));
 
         queue!(
             stdout,

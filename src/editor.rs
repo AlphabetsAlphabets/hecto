@@ -332,9 +332,9 @@ impl<'a> Editor<'a> {
         self.cursor_position = Position { x, y }
     }
 
-    pub fn show_command_window(&mut self) -> Window {
+    pub fn show_command_window(&mut self) -> Option<Window> {
         if let Some(window) = self.windows.get("command") {
-            window.clone()
+            Some(window.clone())
         } else {
             let doc_height = self.terminal.size().height as f32;
             let doc_width = self.terminal.size().width as f32;
@@ -345,40 +345,39 @@ impl<'a> Editor<'a> {
             let y1 = (doc_height * 0.2) as u16;
             let y2 = (doc_height * 0.8) as u16;
 
-            Window::new("command".to_string(), x1, x2, y1, y2)
+            let window = Window::new("command".to_string(), x1, x2, y1, y2);
+            self.windows.insert("command".to_string(), window);
+            None
         }
     }
 
     fn command_mode(&mut self, key: Event) {
-        let mut window = self.show_command_window();
-        window.draw_window(&mut self.terminal.stdout);
-        window.draw_all(&mut self.terminal.stdout);
+        let cur_pos = Position { x: 4, y: 0 };
 
-        let mut x = window.x1 as usize;
-        let width = window.x2 as usize;
-        let y = window.y2 as usize;
+        if let Some(mut window) = self.show_command_window() {
+            window.draw_window(&mut self.terminal.stdout);
+            window.draw_all(&mut self.terminal.stdout);
 
-        let cur_pos = Position { x, y };
-
-        match key {
-            Event::Key(event) => match event.code {
-                Key::Char(c) => {
-                    let len = window.rows.len().saturating_sub(1);
-                    let mut text_box = window.rows.get(len).unwrap().clone();
-
-                    text_box.insert(&cur_pos, c);
-                    window.rows.pop().unwrap();
-                    window.rows.push(text_box);
-
-                    if x < width {
-                        x += 1;
+            match key {
+                Event::Key(event) => match event.code {
+                    Key::Char(c) => {
+                        let mut new_window = window.clone();
+                        let len = new_window.rows.len().saturating_sub(1);
+                        if let Some(row) =  new_window.rows.get_mut(len) {
+                            row.insert(&cur_pos, c);
+                        }
+                        // todo!("HERE");
+                        window = new_window;
                     }
-
-                    window.x1 = x as u16;
+                    _ => (),
                 }
-                _ => (),
+                _ => ()
             }
-            _ => ()
+        } else {
+            let mut window = self.windows.get_mut("command").unwrap();
+            window.draw_window(&mut self.terminal.stdout);
+            window.draw_all(&mut self.terminal.stdout);
+            self.command_mode(self.create_event(Key::Null, Mod::NONE));
         }
     }
 
