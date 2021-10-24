@@ -50,8 +50,9 @@ impl Document {
             let row = Row::from(c.to_string().as_str());
             self.rows.push(row);
         } else {
-            let row = self.rows.get_mut(at.y).unwrap();
-            row.insert(at, c);
+            if let Some(mut row) = self.rows.get_mut(at.y) {
+                row.insert(at, c);
+            }
         }
     }
 
