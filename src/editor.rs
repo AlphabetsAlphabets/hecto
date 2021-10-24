@@ -21,6 +21,9 @@ use crossterm::event::{read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mo
 use crossterm::style::Color;
 use crossterm::terminal::disable_raw_mode;
 
+use std::io::prelude::*;
+use std::fs::OpenOptions;
+
 const STATUS_FG_COLOUR: Color = Color::Rgb {
     r: 63,
     g: 63,
@@ -351,9 +354,16 @@ impl<'a> Editor<'a> {
         }
     }
 
+    fn log(&self, string: String) {
+        let mut file = OpenOptions::new();
+        let mut file = file.write(true).append(true).open("log.txt").unwrap();
+        file.write(string.as_bytes());
+    }
+
     fn command_mode(&mut self, key: Event) {
         let cur_pos = Position { x: 4, y: 0 };
 
+        // NOTE: Even with this method the window is always the same.
         if let Some(mut window) = self.show_command_window() {
             window.draw_window(&mut self.terminal.stdout);
             window.draw_all(&mut self.terminal.stdout);
@@ -366,7 +376,6 @@ impl<'a> Editor<'a> {
                         if let Some(row) =  new_window.rows.get_mut(len) {
                             row.insert(&cur_pos, c);
                         }
-                        // todo!("HERE");
                         window = new_window;
                     }
                     _ => (),
