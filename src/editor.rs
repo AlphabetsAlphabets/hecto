@@ -1,9 +1,9 @@
 use std::env;
-use std::io::StdoutLock;
+use std::io::{stdout, StdoutLock};
 use std::time::Duration;
 use std::time::Instant;
-
 use std::collections::HashMap;
+
 use super::terminal;
 use terminal::Terminal;
 
@@ -354,40 +354,8 @@ impl<'a> Editor<'a> {
         }
     }
 
-    fn log(&self, string: String) {
-        let mut file = OpenOptions::new();
-        let mut file = file.write(true).append(true).open("log.txt").unwrap();
-        file.write(string.as_bytes());
-    }
-
     fn command_mode(&mut self, key: Event) {
-        let cur_pos = Position { x: 4, y: 0 };
-
-        // NOTE: Even with this method the window is always the same.
-        if let Some(mut window) = self.show_command_window() {
-            window.draw_window(&mut self.terminal.stdout);
-            window.draw_all(&mut self.terminal.stdout);
-
-            match key {
-                Event::Key(event) => match event.code {
-                    Key::Char(c) => {
-                        let mut new_window = window.clone();
-                        let len = new_window.rows.len().saturating_sub(1);
-                        if let Some(row) =  new_window.rows.get_mut(len) {
-                            row.insert(&cur_pos, c);
-                        }
-                        window = new_window;
-                    }
-                    _ => (),
-                }
-                _ => ()
-            }
-        } else {
-            let mut window = self.windows.get_mut("command").unwrap();
-            window.draw_window(&mut self.terminal.stdout);
-            window.draw_all(&mut self.terminal.stdout);
-            self.command_mode(self.create_event(Key::Null, Mod::NONE));
-        }
+        let mut window = self.show_command_window();
     }
 
     fn insert_mode(&mut self, key: Event) {

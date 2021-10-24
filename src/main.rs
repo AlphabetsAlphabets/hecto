@@ -8,7 +8,7 @@ mod status_message;
 mod terminal;
 mod window;
 
-use std::io::stdout;
+use std::io::{stdout, StdoutLock};
 
 fn main() {
     let stdout = stdout();
