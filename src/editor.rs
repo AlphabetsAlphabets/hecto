@@ -49,6 +49,18 @@ impl Position {
     }
 }
 
+fn init_command_window(doc_width: f32, doc_height: f32) -> Window {
+    let x1 = (doc_width * 0.2) as u16;
+    let x2 = (doc_width * 0.8) as u16;
+
+    let y1 = (doc_height * 0.2) as u16;
+    let y2 = (doc_height * 0.8) as u16;
+
+    Window::new("command".to_string(), x1, x2, y1, y2)
+}
+
+
+
 pub struct Editor<'a> {
     mode: Mode,
     offset: Position,
@@ -80,15 +92,23 @@ impl<'a> Editor<'a> {
             doc
         };
 
+        let terminal = Terminal::new(stdout).expect("Failed to initialize terminal.");
+        let height = terminal.size().height as f32;
+        let width = terminal.size().width as f32;
+
+        let command_window = init_command_window(width, height);
+        let mut windows: HashMap<String, Window> = HashMap::new();
+        windows.insert("command".to_string(), command_window);
+
         Self {
             mode: Mode::Normal,
             offset: Position::default(),
             should_quit: false,
             document,
-            terminal: Terminal::new(stdout).expect("Failed to initialize terminal."),
+            terminal,
             cursor_position: Position { x: 0, y: 0 },
             status: StatusMessage::from(initial_status),
-            windows: HashMap::default(),
+            windows,
         }
     }
 
@@ -335,48 +355,10 @@ impl<'a> Editor<'a> {
         self.cursor_position = Position { x, y }
     }
 
-    pub fn show_command_window(&mut self) -> Option<Window> {
-        if let Some(window) = self.windows.get("command") {
-            Some(window.clone())
-        } else {
-            let doc_height = self.terminal.size().height as f32;
-            let doc_width = self.terminal.size().width as f32;
-
-            let x1 = (doc_width * 0.2) as u16;
-            let x2 = (doc_width * 0.8) as u16;
-
-            let y1 = (doc_height * 0.2) as u16;
-            let y2 = (doc_height * 0.8) as u16;
-
-            let window = Window::new("command".to_string(), x1, x2, y1, y2);
-            self.windows.insert("command".to_string(), window);
-            None
-        }
-    }
-
     fn command_mode(&mut self, key: Event) {
         let cur_pos = Position { x: 4, y: 0 };
-
-        if let Some(mut window) = self.show_command_window() {
-            window.draw_window(&mut self.terminal.stdout);
-            window.draw_all(&mut self.terminal.stdout);
-
-            match key {
-                Event::Key(event) => match event.code {
-                    Key::Char(c) => {
-                        let mut new_window = window.clone();
-                        let len = new_window.rows.len().saturating_sub(1);
-                        if let Some(row) = new_window.rows.get_mut(len) {
-                            row.insert(&cur_pos, c);
-                        }
-
-                        window = new_window;
-                    }
-                    _ => (),
-                }
-                _ => (),
-            }
-        }
+        let mut window = self.windows.get_mut("command").unwrap();
+        window.draw_window(&mut self.terminal.stdout);
     }
 
     fn insert_mode(&mut self, key: Event) {

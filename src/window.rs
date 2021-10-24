@@ -36,7 +36,7 @@ impl Window {
         }
     }
 
-    pub fn draw_all(&self, stdout: &mut StdoutLock) {
+    fn draw_all(&self, stdout: &mut StdoutLock) {
         stdout.flush().unwrap();
     }
 
@@ -63,7 +63,7 @@ impl Window {
         .unwrap();
     }
 
-    pub fn init_setup(&mut self, stdout: &mut StdoutLock) {
+    pub fn draw_border(&mut self, stdout: &mut StdoutLock) {
         let Self { x1, x2, y1, y2, .. } = *self;
 
         let hori_line = (x2 - x1) as usize;
@@ -83,6 +83,7 @@ impl Window {
         .unwrap();
 
         let mut y = y1 + 1;
+        // TODO: Make this list come from somewhere else.
         let commands = vec!["Save file".to_string(), "Quit".to_string()];
 
         // the vertical left and right walls
@@ -177,7 +178,7 @@ impl Window {
     pub fn draw_window(&mut self, stdout: &mut StdoutLock) {
         let len = self.rows.len().saturating_sub(1);
         if !self.has_been_drawn {
-            self.init_setup(stdout);
+            self.draw_border(stdout);
             self.draw_text_box(stdout);
         } else if self.has_content_changed {
             let text = self.rows.get_mut(len).unwrap();
@@ -185,4 +186,5 @@ impl Window {
         }
 
         queue!(stdout, cursor::Show).unwrap();
+        self.draw_all(stdout);
     }}
