@@ -59,8 +59,6 @@ fn init_command_window(doc_width: f32, doc_height: f32) -> Window {
     Window::new("command".to_string(), x1, x2, y1, y2)
 }
 
-
-
 pub struct Editor<'a> {
     mode: Mode,
     offset: Position,
@@ -356,9 +354,31 @@ impl<'a> Editor<'a> {
     }
 
     fn command_mode(&mut self, key: Event) {
-        let cur_pos = Position { x: 4, y: 0 };
-        let mut window = self.windows.get_mut("command").unwrap();
-        window.draw_window(&mut self.terminal.stdout);
+        if let Some(mut window) = self.windows.get_mut("command") {
+            match key {
+                Event::Key(event) => match event.code {
+                   Key::Char(c) => {
+                        if let Some(mut string) = window.string.clone() {
+                            let mut text_entry = Row::from(string.clone().as_str());
+                            text_entry.insert(&window.cursor_position, c);
+                            window.cursor_position.x += 2;
+                            window.string = Some(text_entry.string);
+                        } else {
+                            let string = Some(String::from(c));
+                            window.string = string;
+                        }
+                    }
+                    _ => (),
+                }
+                _ => (),
+            }
+
+            let mut exhaust = window.clone();
+
+            exhaust.draw_border(&mut self.terminal.stdout);
+            exhaust.draw_text_box(&mut self.terminal.stdout);
+            exhaust.draw_all(&mut self.terminal.stdout);
+        }
     }
 
     fn insert_mode(&mut self, key: Event) {
@@ -510,3 +530,4 @@ impl<'a> Editor<'a> {
         }
     }
 }
+
