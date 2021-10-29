@@ -43,6 +43,13 @@ pub struct Position {
     pub y: usize,
 }
 
+
+impl From<(u16, u16)> for Position {
+    fn from(coord: (u16, u16)) -> Self {
+        Self { x: coord.0.into(), y: coord.1.into() }
+    }
+}
+
 impl Position {
     fn new(x: usize, y: usize) -> Self {
         Self { x, y }
@@ -118,6 +125,13 @@ impl<'a> Editor<'a> {
     fn check_mode(&mut self, key: Event) {
         if self.mode == Mode::Normal {
             self.terminal.change_cursor_shape(CursorShape::Block);
+            if let Some(window) = self.windows.get_mut("command") {
+                if let Some(mut string) = window.string.clone() {
+                    let mut text_entry = Row::from(string.clone().as_str());
+                    text_entry.string = "".to_string();
+                    window.string = Some(text_entry.string);
+                }
+            }
             self.normal_mode(key);
         } else if self.mode == Mode::Command {
             self.command_mode(key);
@@ -355,13 +369,19 @@ impl<'a> Editor<'a> {
 
     fn command_mode(&mut self, key: Event) {
         if let Some(mut window) = self.windows.get_mut("command") {
+
+            let mut exhaust = window.clone();
+            let mut term_cur_pos = Position::from(exhaust.draw_text_box(&mut self.terminal.stdout, None));
+
             match key {
                 Event::Key(event) => match event.code {
                    Key::Char(c) => {
                         if let Some(mut string) = window.string.clone() {
                             let mut text_entry = Row::from(string.clone().as_str());
+
                             text_entry.insert(&window.cursor_position, c);
                             window.cursor_position.x += 2;
+                            term_cur_pos.x += 2;
                             window.string = Some(text_entry.string);
                         } else {
                             let string = Some(String::from(c));
@@ -376,7 +396,7 @@ impl<'a> Editor<'a> {
             let mut exhaust = window.clone();
 
             exhaust.draw_border(&mut self.terminal.stdout);
-            exhaust.draw_text_box(&mut self.terminal.stdout);
+            exhaust.draw_text_box(&mut self.terminal.stdout, Some(term_cur_pos.x as u16));
             exhaust.draw_all(&mut self.terminal.stdout);
         }
     }

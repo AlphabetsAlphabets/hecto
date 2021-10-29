@@ -38,7 +38,7 @@ impl Window {
         stdout.flush().unwrap();
     }
 
-    pub fn draw_text_box(&mut self, stdout: &mut StdoutLock) {
+    pub fn draw_text_box(&mut self, stdout: &mut StdoutLock, x: Option<u16>) -> (u16, u16) {
         let Self { x1, x2, y1, y2, .. } = *self;
         let text_box_border = "-".repeat((x2 - x1 - 2).into());
         let text_entry_border = format!("+{}+", text_box_border);
@@ -54,6 +54,8 @@ impl Window {
 
         self.rows.push(Row::from(text_box.as_str()));
 
+        let x = if let Some(x) = x { x } else { x1 + 4 };
+
         queue!(
             stdout,
             cursor::Show,
@@ -61,9 +63,11 @@ impl Window {
             Print(text_entry_border),
             cursor::MoveTo(x1, y2 - 1),
             Print(text_box),
-            cursor::MoveTo(x1 + 4, y2 - 1),
+            cursor::MoveTo(x, y2 - 1),
         )
         .unwrap();
+
+        cursor::position().unwrap()
     }
 
     pub fn draw_border(&mut self, stdout: &mut StdoutLock) {
