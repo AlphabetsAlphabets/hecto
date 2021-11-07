@@ -415,13 +415,11 @@ impl<'a> Editor<'a> {
             window.draw_border(&mut self.terminal.stdout);
             let Position { mut x, mut y } = self.cursor_position;
             let (tb_x, tb_y) = position().unwrap();
-            if tb_x <= x as u16 {
-                window.draw_text_box(&mut self.terminal.stdout, Some(self.cursor_position.x as u16));
-            } else {
-                window.draw_text_box(&mut self.terminal.stdout, None);
-            }
+            window.draw_text_box(&mut self.terminal.stdout);
 
             y = tb_y as usize;
+            self.cursor_position = Position::from((x, y));
+            self.terminal.set_cursor_position(&self.cursor_position);
 
             match key {
                 Event::Key(event) => match event.code {
@@ -439,13 +437,14 @@ impl<'a> Editor<'a> {
                             window.string = string;
                         }
                         x += 2;
-                        self.cursor_position = Position::from((x, y));
                     }
                     _ => (),
                 },
                 _ => (),
             }
 
+            self.cursor_position = Position::from((x, y));
+            self.terminal.set_cursor_position(&self.cursor_position);
             Object::log("cursor position at the end".to_string(), self.cursor_position);
             window.draw_all(&mut self.terminal.stdout);
         }
