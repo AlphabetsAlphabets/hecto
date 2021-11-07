@@ -1,28 +1,30 @@
+use std::collections::HashMap;
 use std::env;
 use std::io::{stdout, StdoutLock};
 use std::time::Duration;
 use std::time::Instant;
-use std::collections::HashMap;
+
+use std::fmt;
 
 use super::terminal;
 use terminal::Terminal;
 
-use super::window::Window;
 use super::modes::Mode;
 use super::status_message::StatusMessage;
+use super::window::Window;
 
 use super::rows::Row;
 
 use super::document;
 use document::Document;
 
-use crossterm::cursor::CursorShape;
+use crossterm::cursor::{CursorShape, position};
 use crossterm::event::{read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod};
 use crossterm::style::Color;
 use crossterm::terminal::disable_raw_mode;
 
-use std::io::prelude::*;
 use std::fs::OpenOptions;
+use std::io::prelude::*;
 
 const STATUS_FG_COLOUR: Color = Color::Rgb {
     r: 63,
@@ -43,16 +45,55 @@ pub struct Position {
     pub y: usize,
 }
 
-
 impl From<(u16, u16)> for Position {
     fn from(coord: (u16, u16)) -> Self {
-        Self { x: coord.0.into(), y: coord.1.into() }
+        Self {
+            x: coord.0.into(),
+            y: coord.1.into(),
+        }
+    }
+}
+
+
+impl From<(usize, usize)> for Position {
+    fn from(coord: (usize, usize)) -> Self {
+        Self {
+            x: coord.0,
+            y: coord.1,
+        }
     }
 }
 
 impl Position {
     fn new(x: usize, y: usize) -> Self {
         Self { x, y }
+    }
+}
+
+struct Object<T: fmt::Debug> {
+    obj: T,
+}
+
+impl<T: fmt::Debug> fmt::Debug for Object<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:#?}", self.obj)
+    }
+}
+
+impl<T: fmt::Debug> Object<T> {
+    fn log(name: String, obj: T) {
+        let mut file = OpenOptions::new();
+        let mut file = file.append(true).open("log.txt").unwrap();
+
+        let mut text = format!("{}:\n{:#?}\n", name, obj);
+        file.write_all(text.as_bytes());
+    }
+
+    fn clear() -> Result<(), std::io::Error> {
+        let mut file = OpenOptions::new();
+        let mut file = file.write(true).truncate(true).open("log.txt").unwrap();
+
+        Ok(())
     }
 }
 
@@ -368,36 +409,45 @@ impl<'a> Editor<'a> {
     }
 
     fn command_mode(&mut self, key: Event) {
+        Object::log("cursor position at start".to_string(), self.cursor_position);
+        
         if let Some(mut window) = self.windows.get_mut("command") {
+            window.draw_border(&mut self.terminal.stdout);
+            let Position { mut x, mut y } = self.cursor_position;
+            let (tb_x, tb_y) = position().unwrap();
+            if tb_x <= x as u16 {
+                window.draw_text_box(&mut self.terminal.stdout, Some(self.cursor_position.x as u16));
+            } else {
+                window.draw_text_box(&mut self.terminal.stdout, None);
+            }
 
-            let mut exhaust = window.clone();
-            let mut term_cur_pos = Position::from(exhaust.draw_text_box(&mut self.terminal.stdout, None));
+            y = tb_y as usize;
 
             match key {
                 Event::Key(event) => match event.code {
-                   Key::Char(c) => {
+                    Key::Char(c) => {
                         if let Some(mut string) = window.string.clone() {
                             let mut text_entry = Row::from(string.clone().as_str());
 
-                            text_entry.insert(&window.cursor_position, c);
+                            // This is for typing
                             window.cursor_position.x += 2;
-                            term_cur_pos.x += 2;
+
+                            text_entry.insert(&window.cursor_position, c);
                             window.string = Some(text_entry.string);
                         } else {
                             let string = Some(String::from(c));
                             window.string = string;
                         }
+                        x += 2;
+                        self.cursor_position = Position::from((x, y));
                     }
                     _ => (),
-                }
+                },
                 _ => (),
             }
 
-            let mut exhaust = window.clone();
-
-            exhaust.draw_border(&mut self.terminal.stdout);
-            exhaust.draw_text_box(&mut self.terminal.stdout, Some(term_cur_pos.x as u16));
-            exhaust.draw_all(&mut self.terminal.stdout);
+            Object::log("cursor position at the end".to_string(), self.cursor_position);
+            window.draw_all(&mut self.terminal.stdout);
         }
     }
 
@@ -408,7 +458,7 @@ impl<'a> Editor<'a> {
                     self.change_mode(Mode::Normal);
                 }
                 Key::Backspace => {
-                    self.document.backspace(&self.cursor_position);
+                    self.document.delete(&self.cursor_position);
                     let h_key_event = self.create_event(Key::Char('h'), Mod::NONE);
                     self.normal_mode(h_key_event);
                 }
@@ -446,7 +496,6 @@ impl<'a> Editor<'a> {
             modifiers: modifier,
         })
     }
-
 
     fn draw_welcome_message(&self) {
         let mut welcome_message = format!("Hecto -- version {}\r", VERSION);
@@ -550,4 +599,3 @@ impl<'a> Editor<'a> {
         }
     }
 }
-

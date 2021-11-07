@@ -86,5 +86,4 @@ impl<'a> Terminal<'a> {
         let cursor_shape = cursor::SetCursorShape(cursor_shape);
         execute!(self.stdout, cursor_shape).unwrap();
     }
-
 }

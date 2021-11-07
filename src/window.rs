@@ -1,8 +1,8 @@
 use std::io::{Stdout, StdoutLock, Write};
 
-use crossterm::{cursor, queue};
-use crossterm::style::Print;
 use crossterm::event::{Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod};
+use crossterm::style::Print;
+use crossterm::{cursor, queue};
 
 use super::editor::Position;
 use super::rows::Row;
@@ -15,8 +15,10 @@ pub struct Window {
     pub y1: u16,
     pub y2: u16,
     pub rows: Vec<Row>,
+    /// For typing
     pub cursor_position: Position,
     pub string: Option<String>,
+    pub cur_moved: bool,
 }
 
 impl Window {
@@ -31,7 +33,12 @@ impl Window {
             rows: vec![],
             cursor_position: Position { x: 0, y: 0 },
             string: None,
+            cur_moved: false,
         }
+    }
+
+    pub fn get_cursor_position(&self) -> (u16, u16) {
+        cursor::position().unwrap()
     }
 
     pub fn draw_all(&self, stdout: &mut StdoutLock) {
@@ -45,11 +52,12 @@ impl Window {
         self.rows.push(Row::from(text_entry_border.as_str()));
 
         let text_box = if let Some(text) = &self.string {
-             let spaces = " ".repeat((x2 - x1 - text.len() as u16 - 5).into());
-             format!("|-> {}{}|", text, spaces)
+            // NOTE: Risk of overflow
+            let spaces = " ".repeat((x2 - x1 - text.len() as u16 - 5).into());
+            format!("|-> {}{}|", text, spaces)
         } else {
-             let spaces = " ".repeat((x2 - x1 - 5).into());
-             format!("|-> {}|", spaces)
+            let spaces = " ".repeat((x2 - x1 - 5).into());
+            format!("|-> {}|", spaces)
         };
 
         self.rows.push(Row::from(text_box.as_str()));
@@ -67,7 +75,7 @@ impl Window {
         )
         .unwrap();
 
-        cursor::position().unwrap()
+        self.get_cursor_position()
     }
 
     pub fn draw_border(&mut self, stdout: &mut StdoutLock) {
@@ -127,7 +135,7 @@ impl Window {
     }
 
     pub fn draw_command_window(&mut self, stdout: &mut Stdout) {
-        let Self { x1, x2, y1, y2, ..  } = *self;
+        let Self { x1, x2, y1, y2, .. } = *self;
         let hori_line = (x2 - x1) as usize;
 
         let hori_fill = "-".repeat(hori_line - 2);
@@ -141,7 +149,8 @@ impl Window {
             Print(&hori_border),
             cursor::MoveTo(x1, y2 - 2),
             cursor::MoveTo(x1, y1),
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut y = y1 + 1;
         let commands = vec!["Save file".to_string(), "Quit".to_string()];
@@ -177,7 +186,8 @@ impl Window {
                 cursor::MoveTo(x1 + 1, y as u16),
                 Print(text),
                 Print("|"),
-            ).unwrap();
+            )
+            .unwrap();
 
             y += 1;
             num += 1;

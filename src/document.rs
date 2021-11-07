@@ -6,6 +6,8 @@ use super::rows::Row;
 
 use unicode_segmentation::UnicodeSegmentation;
 
+// TODO: Change rows to a gap buffer.
+
 #[derive(Default, Clone)]
 pub struct Document {
     pub rows: Vec<Row>,
@@ -64,7 +66,7 @@ impl Document {
         self.rows.insert(at.y + 1, new_row);
     }
 
-    pub fn backspace(&mut self, at: &Position) {
+    pub fn delete(&mut self, at: &Position) {
         let current_row = self.rows.get_mut(at.y).unwrap();
 
         if current_row.string.len() == 0 {
