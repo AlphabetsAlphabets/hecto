@@ -409,13 +409,16 @@ impl<'a> Editor<'a> {
     }
 
     fn command_mode(&mut self, key: Event) {
-        Object::log("cursor position at start".to_string(), self.cursor_position);
         
         if let Some(mut window) = self.windows.get_mut("command") {
             window.draw_border(&mut self.terminal.stdout);
             let Position { mut x, mut y } = self.cursor_position;
-            let (tb_x, tb_y) = position().unwrap();
             window.draw_text_box(&mut self.terminal.stdout);
+            let (tb_x, tb_y) = position().unwrap();
+
+            if x < tb_x as usize {
+                x = tb_x as usize;
+            } 
 
             y = tb_y as usize;
             self.cursor_position = Position::from((x, y));
@@ -436,7 +439,7 @@ impl<'a> Editor<'a> {
                             let string = Some(String::from(c));
                             window.string = string;
                         }
-                        x += 2;
+                        x += 1;
                     }
                     _ => (),
                 },
@@ -445,7 +448,6 @@ impl<'a> Editor<'a> {
 
             self.cursor_position = Position::from((x, y));
             self.terminal.set_cursor_position(&self.cursor_position);
-            Object::log("cursor position at the end".to_string(), self.cursor_position);
             window.draw_all(&mut self.terminal.stdout);
         }
     }
