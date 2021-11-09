@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::env;
-use std::io::{stdout, StdoutLock};
+
+use std::io::StdoutLock;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -85,13 +86,13 @@ impl<T: fmt::Debug> Object<T> {
         let mut file = OpenOptions::new();
         let mut file = file.append(true).open("log.txt").unwrap();
 
-        let mut text = format!("{}:\n{:#?}\n", name, obj);
-        file.write_all(text.as_bytes());
+        let text = format!("{}:\n{:#?}\n", name, obj);
+        file.write_all(text.as_bytes()).unwrap();
     }
 
     fn clear() -> Result<(), std::io::Error> {
         let mut file = OpenOptions::new();
-        let mut file = file.write(true).truncate(true).open("log.txt").unwrap();
+        file.write(true).truncate(true).open("log.txt").unwrap();
 
         Ok(())
     }
@@ -167,7 +168,7 @@ impl<'a> Editor<'a> {
         if self.mode == Mode::Normal {
             self.terminal.change_cursor_shape(CursorShape::Block);
             if let Some(window) = self.windows.get_mut("command") {
-                if let Some(mut string) = window.string.clone() {
+                if let Some(string) = window.string.clone() {
                     let mut text_entry = Row::from(string.clone().as_str());
                     text_entry.string = "".to_string();
                     window.string = Some(text_entry.string);
@@ -409,10 +410,9 @@ impl<'a> Editor<'a> {
     }
 
     fn command_mode(&mut self, key: Event) {
-        
         if let Some(mut window) = self.windows.get_mut("command") {
             window.draw_border(&mut self.terminal.stdout);
-            let Position { mut x, mut y } = self.cursor_position;
+            let Position { mut x, .. } = self.cursor_position;
             window.draw_text_box(&mut self.terminal.stdout);
             let (tb_x, tb_y) = position().unwrap();
 
@@ -420,14 +420,14 @@ impl<'a> Editor<'a> {
                 x = tb_x as usize;
             } 
 
-            y = tb_y as usize;
+            let y = tb_y as usize;
             self.cursor_position = Position::from((x, y));
             self.terminal.set_cursor_position(&self.cursor_position);
 
             match key {
                 Event::Key(event) => match event.code {
                     Key::Char(c) => {
-                        if let Some(mut string) = window.string.clone() {
+                        if let Some(string) = window.string.clone() {
                             let mut text_entry = Row::from(string.clone().as_str());
 
                             // This is for typing
