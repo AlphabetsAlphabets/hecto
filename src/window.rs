@@ -17,6 +17,7 @@ pub struct Window {
     /// For typing
     pub cursor_position: Position,
     pub string: Option<String>,
+    pub cur_pos_before: Position,
 }
 
 impl Window {
@@ -31,6 +32,7 @@ impl Window {
             rows: vec![],
             cursor_position: Position { x: 0, y: 0 },
             string: None,
+            cur_pos_before: Position { x: 0, y: 0 },
         }
     }
 
@@ -43,6 +45,8 @@ impl Window {
     }
 
     pub fn draw_text_box(&mut self, stdout: &mut StdoutLock) -> (u16, u16) {
+        self.cur_pos_before = Position::from(self.get_cursor_position());
+
         let Self { x1, x2, y2, .. } = *self;
         let text_box_border = "-".repeat((x2 - x1 - 2).into());
         let text_entry_border = format!("+{}+", text_box_border);

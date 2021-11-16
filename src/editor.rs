@@ -19,7 +19,8 @@ use super::rows::Row;
 use super::document;
 use document::Document;
 
-use crossterm::cursor::{CursorShape, position};
+use crossterm::{execute, queue};
+use crossterm::cursor::{CursorShape, position, SavePosition, RestorePosition};
 use crossterm::event::{read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod};
 use crossterm::style::Color;
 use crossterm::terminal::disable_raw_mode;
@@ -117,6 +118,7 @@ pub struct Editor<'a> {
     should_quit: bool,
     status: StatusMessage,
     windows: HashMap<String, Window>,
+    prev_cursor_position: Position,
 }
 
 impl<'a> Editor<'a> {
@@ -154,6 +156,7 @@ impl<'a> Editor<'a> {
             document,
             terminal,
             cursor_position: Position { x: 0, y: 0 },
+            prev_cursor_position: Position { x: 0, y: 0 },
             status: StatusMessage::from(initial_status),
             windows,
         }
@@ -167,6 +170,7 @@ impl<'a> Editor<'a> {
     fn check_mode(&mut self, key: Event) {
         if self.mode == Mode::Normal {
             self.terminal.change_cursor_shape(CursorShape::Block);
+
             if let Some(window) = self.windows.get_mut("command") {
                 if let Some(string) = window.string.clone() {
                     let mut text_entry = Row::from(string.clone().as_str());
@@ -174,6 +178,7 @@ impl<'a> Editor<'a> {
                     window.string = Some(text_entry.string);
                 }
             }
+
             self.normal_mode(key);
         } else if self.mode == Mode::Command {
             self.command_mode(key);
@@ -196,6 +201,7 @@ impl<'a> Editor<'a> {
             if self.should_quit {
                 self.terminal.clear_screen();
                 disable_raw_mode().unwrap();
+
                 break;
             } else if self.mode != Mode::Command {
                 self.terminal.update_dimensions();
@@ -209,7 +215,7 @@ impl<'a> Editor<'a> {
                 };
 
                 self.terminal.set_cursor_position(&pos);
-            }
+            } 
 
             if let Err(error) = self.process_keypress() {
                 eprintln!("{}", error);
@@ -222,6 +228,10 @@ impl<'a> Editor<'a> {
         match pressed_key {
             Event::Key(event) => match event.code {
                 Key::Esc => {
+                    if self.mode == Mode::Command {
+                        self.cursor_position = self.prev_cursor_position;
+                        self.terminal.set_cursor_position(&self.cursor_position);
+                    }
                     self.change_mode(Mode::Normal);
                 }
                 _ => self.check_mode(pressed_key),
@@ -229,6 +239,7 @@ impl<'a> Editor<'a> {
             _ => (),
         };
 
+        self.terminal.stdout.flush().unwrap();
         self.scroll();
         Ok(())
     }
@@ -367,11 +378,13 @@ impl<'a> Editor<'a> {
                 }
                 Key::Char('s') => x = width.saturating_sub(1),
 
-                Key::Char(':') => self.change_mode(Mode::Command),
 
                 // changing modes
-                Key::Char('i') => {
-                    self.change_mode(Mode::Insert);
+                Key::Char('i') => self.change_mode(Mode::Insert),
+
+                Key::Char(':') => {
+                    self.prev_cursor_position = self.cursor_position;
+                    self.change_mode(Mode::Command);
                 }
 
                 Key::Char('A') => {
