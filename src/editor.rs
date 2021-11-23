@@ -21,7 +21,7 @@ use document::Document;
 
 use crossterm::{execute, queue};
 use crossterm::cursor::{CursorShape, position, SavePosition, RestorePosition};
-use crossterm::event::{read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod};
+use crossterm::event::{read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod, poll};
 use crossterm::style::Color;
 use crossterm::terminal::disable_raw_mode;
 
@@ -110,6 +110,7 @@ fn init_command_window(doc_width: f32, doc_height: f32) -> Window {
 }
 
 pub struct Editor<'a> {
+    commands: Vec<String>,
     mode: Mode,
     offset: Position,
     document: Document,
@@ -146,10 +147,15 @@ impl<'a> Editor<'a> {
         let width = terminal.size().width as f32;
 
         let command_window = init_command_window(width, height);
+        let save_file = init_command_window(width, height);
         let mut windows: HashMap<String, Window> = HashMap::new();
         windows.insert("command".to_string(), command_window);
+        windows.insert("save".to_string(), save_file);
+
+        let commands = vec!["Save file".to_string(), "Quit".to_string()];
 
         Self {
+            commands,    
             mode: Mode::Normal,
             offset: Position::default(),
             should_quit: false,
@@ -159,6 +165,13 @@ impl<'a> Editor<'a> {
             prev_cursor_position: Position { x: 0, y: 0 },
             status: StatusMessage::from(initial_status),
             windows,
+        }
+    }
+
+    pub fn has_event(&self, timeout: Duration) -> bool {
+        match poll(timeout) {
+            Ok(has_event) => has_event,
+            Err(_) => false,
         }
     }
 
@@ -317,12 +330,15 @@ impl<'a> Editor<'a> {
                     if event.modifiers.contains(Mod::ALT) {
                         let filename = &self.document.filename;
                         if filename == "[NO FILE OPENED]" {
-                            todo!("Ask the user for the name of the file.");
+                            // NOTE: Make a window show up, and let them type the file name, but only the text box this time.
+                            // Or consider changing the way opening files works.
+                            todo!("Save via the status bar.");
                         } else {
                             let status = StatusMessage::from("File written.");
                             self.document.save_file();
                             self.status = status;
                         }
+
                     } else {
                         if let Some(row) = self.document.row(y) {
                             if let Some(contents) = row.contents().get(x..) {
@@ -368,7 +384,18 @@ impl<'a> Editor<'a> {
                     }
                 }
 
-                Key::Char('g') => y = 0,
+                Key::Char('G') => y = doc_height.saturating_sub(1),
+
+                Key::Char('g') => {
+                    let has_event = self.has_event(Duration::from_millis(500));
+
+                    if has_event {
+                        match event.code {
+                            Key::Char('g') => y = 0,
+                            _ => (),
+                        }
+                    }
+                }
                 Key::Char('0') => x = 0,
                 Key::Char('S') => {
                     if let Some(row) = self.document.row(y) {
@@ -377,7 +404,6 @@ impl<'a> Editor<'a> {
                     }
                 }
                 Key::Char('s') => x = width.saturating_sub(1),
-
 
                 // changing modes
                 Key::Char('i') => self.change_mode(Mode::Insert),
@@ -424,9 +450,10 @@ impl<'a> Editor<'a> {
 
     fn command_mode(&mut self, key: Event) {
         if let Some(mut window) = self.windows.get_mut("command") {
-            window.draw_border(&mut self.terminal.stdout);
+            window.draw_border(&mut self.terminal.stdout, &self.commands);
             let Position { mut x, .. } = self.cursor_position;
-            window.draw_text_box(&mut self.terminal.stdout);
+            // window.draw_text_box(&mut self.terminal.stdout, Some("Filte".to_string()));
+            window.draw_text_box(&mut self.terminal.stdout, None);
             let (tb_x, tb_y) = position().unwrap();
 
             if x < tb_x as usize {
@@ -437,6 +464,7 @@ impl<'a> Editor<'a> {
             self.cursor_position = Position::from((x, y));
             self.terminal.set_cursor_position(&self.cursor_position);
 
+            // NOTE: self cannot be used inside the match arms.
             match key {
                 Event::Key(event) => match event.code {
                     Key::Char(c) => {
@@ -453,6 +481,19 @@ impl<'a> Editor<'a> {
                             window.string = string;
                         }
                         x += 1;
+                    }
+
+                    Key::Enter => {
+                        let string = if let Some(string) = window.string.clone() {
+                            string
+                        } else {
+                            "".to_string()
+                        };
+
+                        if !string.is_empty() {
+                            todo!("Prompt user for file name.");
+                            self.document.save_file();
+                        }
                     }
                     _ => (),
                 },
@@ -613,3 +654,4 @@ impl<'a> Editor<'a> {
         }
     }
 }
+
