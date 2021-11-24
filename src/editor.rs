@@ -19,11 +19,11 @@ use super::rows::Row;
 use super::document;
 use document::Document;
 
-use crossterm::{execute, queue};
-use crossterm::cursor::{CursorShape, position, SavePosition, RestorePosition};
-use crossterm::event::{read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod, poll};
+use crossterm::cursor::{position, CursorShape, RestorePosition, SavePosition};
+use crossterm::event::{poll, read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod};
 use crossterm::style::Color;
 use crossterm::terminal::disable_raw_mode;
+use crossterm::{execute, queue};
 
 use std::fs::OpenOptions;
 use std::io::prelude::*;
@@ -56,7 +56,6 @@ impl From<(u16, u16)> for Position {
     }
 }
 
-
 impl From<(usize, usize)> for Position {
     fn from(coord: (usize, usize)) -> Self {
         Self {
@@ -72,7 +71,7 @@ impl Position {
     }
 }
 
-struct Object<T: fmt::Debug> {
+pub struct Object<T: fmt::Debug> {
     obj: T,
 }
 
@@ -83,7 +82,7 @@ impl<T: fmt::Debug> fmt::Debug for Object<T> {
 }
 
 impl<T: fmt::Debug> Object<T> {
-    fn log(name: String, obj: T) {
+    pub fn log(name: String, obj: T) {
         let mut file = OpenOptions::new();
         let mut file = file.append(true).open("log.txt").unwrap();
 
@@ -91,7 +90,7 @@ impl<T: fmt::Debug> Object<T> {
         file.write_all(text.as_bytes()).unwrap();
     }
 
-    fn clear() -> Result<(), std::io::Error> {
+    pub fn clear() -> Result<(), std::io::Error> {
         let mut file = OpenOptions::new();
         file.write(true).truncate(true).open("log.txt").unwrap();
 
@@ -107,6 +106,16 @@ fn init_command_window(doc_width: f32, doc_height: f32) -> Window {
     let y2 = (doc_height * 0.8) as u16;
 
     Window::new("command".to_string(), x1, x2, y1, y2)
+}
+
+fn init_save_window(doc_width: f32, doc_height: f32) -> Window {
+    let x1 = (doc_width * 0.2) as u16;
+    let x2 = (doc_width * 0.8) as u16;
+
+    let y1 = (doc_height * 0.2) as u16;
+    let y2 = (doc_height * 0.8) as u16;
+
+    Window::new("save".to_string(), x1, x2, y1, y2)
 }
 
 pub struct Editor<'a> {
@@ -147,15 +156,15 @@ impl<'a> Editor<'a> {
         let width = terminal.size().width as f32;
 
         let command_window = init_command_window(width, height);
-        let save_file = init_command_window(width, height);
+        let save_window = init_save_window(width, height);
         let mut windows: HashMap<String, Window> = HashMap::new();
         windows.insert("command".to_string(), command_window);
-        windows.insert("save".to_string(), save_file);
+        windows.insert("save".to_string(), save_window);
 
         let commands = vec!["Save file".to_string(), "Quit".to_string()];
 
         Self {
-            commands,    
+            commands,
             mode: Mode::Normal,
             offset: Position::default(),
             should_quit: false,
@@ -228,7 +237,7 @@ impl<'a> Editor<'a> {
                 };
 
                 self.terminal.set_cursor_position(&pos);
-            } 
+            }
 
             if let Err(error) = self.process_keypress() {
                 eprintln!("{}", error);
@@ -331,14 +340,12 @@ impl<'a> Editor<'a> {
                         let filename = &self.document.filename;
                         if filename == "[NO FILE OPENED]" {
                             // NOTE: Make a window show up, and let them type the file name, but only the text box this time.
-                            // Or consider changing the way opening files works.
-                            todo!("Save via the status bar.");
+                            todo!("This is a shortcut key to save a file.");
                         } else {
                             let status = StatusMessage::from("File written.");
                             self.document.save_file();
                             self.status = status;
                         }
-
                     } else {
                         if let Some(row) = self.document.row(y) {
                             if let Some(contents) = row.contents().get(x..) {
@@ -452,13 +459,13 @@ impl<'a> Editor<'a> {
         if let Some(mut window) = self.windows.get_mut("command") {
             window.draw_border(&mut self.terminal.stdout, &self.commands);
             let Position { mut x, .. } = self.cursor_position;
-            // window.draw_text_box(&mut self.terminal.stdout, Some("Filte".to_string()));
-            window.draw_text_box(&mut self.terminal.stdout, None);
+            window.draw_text_box(&mut self.terminal.stdout, "FILTER COMMANDS".to_string());
+            // window.draw_text_box(&mut self.terminal.stdout, None);
             let (tb_x, tb_y) = position().unwrap();
 
             if x < tb_x as usize {
                 x = tb_x as usize;
-            } 
+            }
 
             let y = tb_y as usize;
             self.cursor_position = Position::from((x, y));
@@ -654,4 +661,3 @@ impl<'a> Editor<'a> {
         }
     }
 }
-
