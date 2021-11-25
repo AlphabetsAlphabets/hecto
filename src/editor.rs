@@ -86,7 +86,7 @@ impl<T: fmt::Debug> Object<T> {
         let mut file = OpenOptions::new();
         let mut file = file.append(true).open("log.txt").unwrap();
 
-        let text = format!("{}:\n{:#?}\n", name, obj);
+        let text = format!("---\n{}:{:#?}\n---\n", name, obj);
         file.write_all(text.as_bytes()).unwrap();
     }
 
@@ -112,8 +112,8 @@ fn init_save_window(doc_width: f32, doc_height: f32) -> Window {
     let x1 = (doc_width * 0.2) as u16;
     let x2 = (doc_width * 0.8) as u16;
 
-    let y1 = (doc_height * 0.2) as u16;
-    let y2 = (doc_height * 0.8) as u16;
+    let y1 = (doc_height * 0.5) as u16;
+    let y2 = y1 + 3;
 
     Window::new("save".to_string(), x1, x2, y1, y2)
 }
@@ -457,10 +457,9 @@ impl<'a> Editor<'a> {
 
     fn command_mode(&mut self, key: Event) {
         if let Some(mut window) = self.windows.get_mut("command") {
-            window.draw_border(&mut self.terminal.stdout, &self.commands);
             let Position { mut x, .. } = self.cursor_position;
+            window.draw_border(&mut self.terminal.stdout, &self.commands);
             window.draw_text_box(&mut self.terminal.stdout, "FILTER COMMANDS".to_string());
-            // window.draw_text_box(&mut self.terminal.stdout, None);
             let (tb_x, tb_y) = position().unwrap();
 
             if x < tb_x as usize {
@@ -491,6 +490,7 @@ impl<'a> Editor<'a> {
                     }
 
                     Key::Enter => {
+                        todo!("Fix backspace first");
                         let string = if let Some(string) = window.string.clone() {
                             string
                         } else {
@@ -501,6 +501,15 @@ impl<'a> Editor<'a> {
                             todo!("Prompt user for file name.");
                             self.document.save_file();
                         }
+                    }
+
+                    Key::Backspace => {
+                        if let Some(string) = &window.string {
+                            if string.len() > 0 {
+                                window.delete(&self.cursor_position);
+                                x -= 1;
+                            }
+                        };
                     }
                     _ => (),
                 },

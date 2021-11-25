@@ -3,6 +3,8 @@ use std::io::{StdoutLock, Write};
 use crossterm::style::Print;
 use crossterm::{cursor, queue};
 
+use unicode_segmentation::UnicodeSegmentation;
+
 use super::editor::Position;
 use super::rows::Row;
 use super::editor::Object;
@@ -14,7 +16,6 @@ pub struct Window {
     pub x2: u16, // right
     pub y1: u16, // up
     pub y2: u16, // down
-    pub rows: Vec<Row>,
     /// For typing
     pub cursor_position: Position,
     pub string: Option<String>,
@@ -30,7 +31,7 @@ impl Window {
             x2,
             y1,
             y2,
-            rows: vec![],
+            // rows: vec![],
             cursor_position: Position { x: 0, y: 0 },
             string: None,
             cur_pos_before: Position { x: 0, y: 0 },
@@ -83,16 +84,10 @@ impl Window {
             // results window
             let text = if num < content.len() {
                 let spaces = " ".repeat((x2 - x1 - repeat - 2).into());
-                let row = format!("|{}{}|", content.get(num).unwrap(), spaces);
-
-                self.rows.push(Row::from(row.clone().as_str()));
-                row
+                format!("|{}{}|", content.get(num).unwrap(), spaces)
             } else {
                 let spaces = " ".repeat((x2 - x1 - 2).into());
-                let row = format!("|{}|", spaces);
-
-                self.rows.push(Row::from(row.clone().as_str()));
-                row
+                format!("|{}|", spaces)
             };
 
             queue!(stdout, cursor::MoveTo(x1, y as u16), Print(text)).unwrap();
@@ -171,5 +166,16 @@ impl Window {
         .unwrap();
 
         self.get_cursor_position()
+    }
+}
+
+impl Window {
+    pub fn delete(&mut self, at: &Position) {
+        if let Some(string) = &self.string {
+            let mut text: String = string.clone().graphemes(true).rev().collect();
+            text.remove(0);
+            let text: String = text.graphemes(true).rev().collect();
+            self.string = Some(text);
+        }
     }
 }

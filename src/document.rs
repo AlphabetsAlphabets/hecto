@@ -70,10 +70,10 @@ impl Document {
         let current_row = self.rows.get_mut(at.y).unwrap();
 
         if current_row.string.len() == 0 {
-            // removing rows
+            // Removing rows, wemoving empty lines
             self.rows.remove(at.y);
         } else if at.x == 0 {
-            // removing rows
+            // removing rows, appending the line below to the current line.
             let current_row = self.rows.get_mut(at.y).unwrap();
             let contents = current_row.contents();
 
