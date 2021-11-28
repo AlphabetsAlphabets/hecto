@@ -86,7 +86,7 @@ impl<T: fmt::Debug> Object<T> {
         let mut file = OpenOptions::new();
         let mut file = file.append(true).open("log.txt").unwrap();
 
-        let text = format!("---\n{}:{:#?}\n", name, obj);
+        let text = format!("{}:{:#?}\n", name, obj);
         file.write_all(text.as_bytes()).unwrap();
     }
 
@@ -488,7 +488,11 @@ impl<'a> Editor<'a> {
                             let string = Some(String::from(c));
                             window.string = string;
                         }
-                        x += 1;
+
+                        let right_edge = (window.x2 - 2).into();
+                        if x < right_edge {
+                            x += 1;
+                        }
                     }
 
                     Key::Enter => {

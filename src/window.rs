@@ -138,7 +138,18 @@ impl Window {
 
             let spaces = " ".repeat(repeat.into());
             // Object::log("text".to_string(), &text);
-            format!("|-> {}{}|", text, spaces)
+            Object::log("Text length".to_string(), &text.len());
+            Object::log("max".to_string(), &max);
+
+            if text.len() > max - 3 {
+                // NOTE: The scrolling does work, but it's way too buggy.
+                let mut text = text.clone();
+                let diff: usize = text.len().saturating_sub(max);
+                let _ = text.drain(..diff);
+                format!("| {}", text)
+            } else {
+                format!("|-> {}{}|", text, spaces)
+            }
         } else {
             let spaces = " ".repeat((x2 - x1 - 5).into());
             format!("|-> {}|", spaces)
