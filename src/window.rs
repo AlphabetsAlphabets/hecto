@@ -111,10 +111,8 @@ impl Window {
 
 
         // TODO: If string.len() == even, bar will shift to right or left.
-        // todo!("If string.len() == even, bar will shift to right or left.");
         let top_half = format!("+{} {} {}+", left_half, string, right_half);
         let difference = (top_half.len() as isize - length_of_border as isize);
-        // Object::log("Difference".to_string(), difference);
 
         let repeat = repeat as isize;
         let left_half = if difference > 0 {
@@ -127,10 +125,6 @@ impl Window {
             "-".repeat(repeat as usize)
         };
 
-        let difference = right_half.len() - left_half.len();
-        if difference > 0 {
-        }
-
         let top_half = format!("+{} {} {}+", left_half, string, right_half);
 
         let bottom_half = "-".repeat((x2 - x1 - 2).into());
@@ -138,13 +132,12 @@ impl Window {
 
         let text_box = if let Some(text) = &self.string {
             // NOTE: This now instead makes the text box longer lmao.
-            let repeat = x2
-                .saturating_sub(x1)
-                .saturating_sub(text.len() as u16)
-                .saturating_sub(5)
-                .into();
+            let max = (x2 - x1) as usize;
+            let repeat = max - 5;
+            let repeat = repeat.saturating_sub(text.len());
 
-            let spaces = " ".repeat(repeat);
+            let spaces = " ".repeat(repeat.into());
+            // Object::log("text".to_string(), &text);
             format!("|-> {}{}|", text, spaces)
         } else {
             let spaces = " ".repeat((x2 - x1 - 5).into());

@@ -86,7 +86,7 @@ impl<T: fmt::Debug> Object<T> {
         let mut file = OpenOptions::new();
         let mut file = file.append(true).open("log.txt").unwrap();
 
-        let text = format!("---\n{}:{:#?}\n---\n", name, obj);
+        let text = format!("---\n{}:{:#?}\n", name, obj);
         file.write_all(text.as_bytes()).unwrap();
     }
 
@@ -161,7 +161,7 @@ impl<'a> Editor<'a> {
         windows.insert("command".to_string(), command_window);
         windows.insert("save".to_string(), save_window);
 
-        let commands = vec!["Save file".to_string(), "Quit".to_string()];
+        let commands = vec!["SAVE FILE".to_string(), "QUIT".to_string()];
 
         Self {
             commands,
@@ -304,6 +304,7 @@ impl<'a> Editor<'a> {
                         }
                     }
                 }
+
                 Key::Char('l') => {
                     if x < width {
                         x += 1;
@@ -459,9 +460,10 @@ impl<'a> Editor<'a> {
         if let Some(mut window) = self.windows.get_mut("command") {
             let Position { mut x, .. } = self.cursor_position;
             window.draw_border(&mut self.terminal.stdout, &self.commands);
-            window.draw_text_box(&mut self.terminal.stdout, "FILTER COMMANDS".to_string());
+            window.draw_text_box(&mut self.terminal.stdout, "FILTER".to_string());
             let (tb_x, tb_y) = position().unwrap();
 
+            // makes sure the cursor moves forward.
             if x < tb_x as usize {
                 x = tb_x as usize;
             }
@@ -490,17 +492,23 @@ impl<'a> Editor<'a> {
                     }
 
                     Key::Enter => {
-                        todo!("Fix backspace first");
                         let string = if let Some(string) = window.string.clone() {
-                            string
+                            string.to_uppercase().trim().to_string()
                         } else {
                             "".to_string()
                         };
 
-                        if !string.is_empty() {
-                            todo!("Prompt user for file name.");
-                            self.document.save_file();
+                        if string.is_empty() {
+                            return;
                         }
+
+                        for command in &self.commands {
+                            todo!("Word for word matching, needs more planning.");
+                            command.contains(&string);
+                        }
+
+                        // todo!("Prompt user for file name.");
+                        // self.document.save_file();
                     }
 
                     Key::Backspace => {
