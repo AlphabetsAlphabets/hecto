@@ -23,10 +23,7 @@ impl From<&str> for Row {
 
 impl From<String> for Row {
     fn from(s: String) -> Self {
-        let mut row = Self {
-            string: s,
-            len: 0,
-        };
+        let mut row = Self { string: s, len: 0 };
 
         row.update_len();
         row

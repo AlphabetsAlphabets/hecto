@@ -5,9 +5,9 @@ use crossterm::{cursor, queue};
 
 use unicode_segmentation::UnicodeSegmentation;
 
+use super::editor::Object;
 use super::editor::Position;
 use super::rows::Row;
-use super::editor::Object;
 
 #[derive(Clone, Default, Debug)]
 pub struct Window {
@@ -52,7 +52,12 @@ impl Window {
         let halves = (x2 - x1 - self.name.len() as u16) as usize / 2;
         let left_half = "-".repeat(halves - 1);
         let right_half = "-".repeat(halves - 3);
-        let top_border = format!("+{} {} {}+", left_half, self.name.to_uppercase(), right_half);
+        let top_border = format!(
+            "+{} {} {}+",
+            left_half,
+            self.name.to_uppercase(),
+            right_half
+        );
 
         let bottom_border = (x2 - x1) as usize;
         let border_fill = "-".repeat(bottom_border - 2);
@@ -109,7 +114,6 @@ impl Window {
         let left_half = "-".repeat(repeat);
         let right_half = "-".repeat(repeat);
 
-
         // TODO: If string.len() == even, bar will shift to right or left.
         let top_half = format!("+{} {} {}+", left_half, string, right_half);
         let difference = (top_half.len() as isize - length_of_border as isize);
@@ -131,23 +135,26 @@ impl Window {
         let bottom_half = format!("+{}+", bottom_half);
 
         let text_box = if let Some(text) = &self.string {
-            // NOTE: This now instead makes the text box longer lmao.
             let max = (x2 - x1) as usize;
-            let repeat = max - 5;
-            let repeat = repeat.saturating_sub(text.len());
 
-            let spaces = " ".repeat(repeat.into());
-            // Object::log("text".to_string(), &text);
-            Object::log("Text length".to_string(), &text.len());
-            Object::log("max".to_string(), &max);
+            // NOTE: (max - X).foo(Y), both will cause an overflow error.
+            // max - X will only cause an overflow error if scrolling is allowed.
+            // stopping the scrolling will stop max - X from overflowing.
+            if self.cursor_position.x > x2.into() {
+                let mut text: Vec<char> = text.chars().collect();
+                match text.pop() {
+                    _ => (),
+                };
 
-            if text.len() > max - 3 {
-                // NOTE: The scrolling does work, but it's way too buggy.
-                let mut text = text.clone();
-                let diff: usize = text.len().saturating_sub(max);
-                let _ = text.drain(..diff);
-                format!("| {}", text)
+                text.iter().collect::<String>()
             } else {
+                let repeat = if let Some(value) = (max - text.len()).checked_sub(5) {
+                    value
+                } else {
+                    0
+                };
+
+                let spaces = " ".repeat(repeat);
                 format!("|-> {}{}|", text, spaces)
             }
         } else {
@@ -155,10 +162,9 @@ impl Window {
             format!("|-> {}|", spaces)
         };
 
-        // in y2 - X, increasing X moves it upwards.
         queue!(
             stdout,
-            cursor::MoveTo(x1, y2 - 1),
+            cursor::MoveTo(x1, y2 - 1), // in y2 - X, increasing X moves it upwards.
             Print(&top_half),
             cursor::MoveTo(x1, y2 + 1),
             Print(&bottom_half),
@@ -174,12 +180,43 @@ impl Window {
 }
 
 impl Window {
-    pub fn delete(&mut self, at: &Position) {
+    pub fn delete(&mut self, at: &Position) -> usize {
         if let Some(string) = &self.string {
-            let mut text: String = string.clone().graphemes(true).rev().collect();
-            text.remove(0);
-            let text: String = text.graphemes(true).rev().collect();
-            self.string = Some(text);
+            if string.len() > 0 {
+                let mut text: String = string.clone().graphemes(true).collect();
+                text.pop();
+                self.string = Some(text);
+
+                1
+            } else {
+                0
+            }
+        } else {
+            0
+        }
+    }
+
+    pub fn insert(&mut self, c: char, pos_x: usize) -> usize {
+        // TODO: The reason it uses coords instead of the length of the textbox - 2
+        // Is because the length of the textbox isn't accessible from this function.
+        let right_edge = self.x2 - 2;
+        if pos_x < right_edge.into() {
+            self.cursor_position.x += 1;
+
+            let string = if let Some(string) = self.string.clone() {
+                let mut text_entry = Row::from(string);
+
+                text_entry.insert(&self.cursor_position, c);
+                text_entry.string
+            } else {
+                String::from(c)
+            };
+
+            self.string = Some(string);
+
+            1
+        } else {
+            0
         }
     }
 }

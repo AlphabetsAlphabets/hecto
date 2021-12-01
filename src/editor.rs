@@ -458,7 +458,9 @@ impl<'a> Editor<'a> {
 
     fn command_mode(&mut self, key: Event) {
         if let Some(mut window) = self.windows.get_mut("command") {
+            // This x moves the visible cursor.
             let Position { mut x, .. } = self.cursor_position;
+
             window.draw_border(&mut self.terminal.stdout, &self.commands);
             window.draw_text_box(&mut self.terminal.stdout, "FILTER".to_string());
             let (tb_x, tb_y) = position().unwrap();
@@ -476,23 +478,13 @@ impl<'a> Editor<'a> {
             match key {
                 Event::Key(event) => match event.code {
                     Key::Char(c) => {
-                        if let Some(string) = window.string.clone() {
-                            let mut text_entry = Row::from(string.clone().as_str());
+                        let move_by = window.insert(c, x);
+                        x += move_by;
+                    }
 
-                            // This is for typing
-                            window.cursor_position.x += 2;
-
-                            text_entry.insert(&window.cursor_position, c);
-                            window.string = Some(text_entry.string);
-                        } else {
-                            let string = Some(String::from(c));
-                            window.string = string;
-                        }
-
-                        let right_edge = (window.x2 - 2).into();
-                        if x < right_edge {
-                            x += 1;
-                        }
+                    Key::Backspace => {
+                        let move_by = window.delete(&self.cursor_position);
+                        x -= move_by;
                     }
 
                     Key::Enter => {
@@ -515,14 +507,6 @@ impl<'a> Editor<'a> {
                         // self.document.save_file();
                     }
 
-                    Key::Backspace => {
-                        if let Some(string) = &window.string {
-                            if string.len() > 0 {
-                                window.delete(&self.cursor_position);
-                                x -= 1;
-                            }
-                        };
-                    }
                     _ => (),
                 },
                 _ => (),
