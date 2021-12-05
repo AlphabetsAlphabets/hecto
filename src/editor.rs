@@ -320,13 +320,14 @@ impl<'a> Editor<'a> {
                             let mut index = 0;
 
                             for (count, ch) in contents.chars().rev().enumerate() {
-                                if !ch.is_ascii_alphabetic() {
+                                // NOTE: Still buggy, run once in nvim then in hecto to see problem.
+                                if ch == ' ' {
                                     index = count + 1;
                                     break;
                                 }
                             }
 
-                            if (y < doc_height && x == 0) && y > 0 {
+                            if ((y < doc_height && x == 0) && y > 0) || index == 0 {
                                 y -= 1;
                                 x = row.len + 2;
                             } else {
@@ -349,22 +350,24 @@ impl<'a> Editor<'a> {
                         }
                     } else {
                         if let Some(row) = self.document.row(y) {
+                            // NOTE: get(x..) -> x is included
                             if let Some(contents) = row.contents().get(x..) {
                                 let mut index = 0;
-                                for (count, ch) in contents.chars().enumerate() {
-                                    if !ch.is_ascii_alphabetic() {
-                                        index = count;
+
+                                for (count, currrent_ch) in contents.chars().enumerate() {
+                                    if currrent_ch == ' ' {
+                                        index = count + 1;
                                         break;
                                     }
                                 }
 
-                                if x >= width && y < doc_height.saturating_sub(1) {
+                                if (x >= width && y < doc_height.saturating_sub(1)) || index == 0 {
                                     y += 1;
                                     x = 0;
                                 } else {
                                     // NOTE: This will need fixing, different behaviour when
                                     // non ascii alphabetic characters appear.
-                                    x = x.saturating_add(index + 1);
+                                    x = x.saturating_add(index);
                                 }
                             }
                         }
