@@ -118,6 +118,15 @@ fn init_save_window(doc_width: f32, doc_height: f32) -> Window {
     Window::new("save".to_string(), x1, x2, y1, y2)
 }
 
+fn update_windows_dimensions(width: f32, height: f32) -> HashMap<String, Window> {
+    let command_window = init_command_window(width, height);
+    let save_window = init_save_window(width, height);
+    let mut windows: HashMap<String, Window> = HashMap::new();
+    windows.insert("command".to_string(), command_window);
+    windows.insert("save".to_string(), save_window);
+    windows
+}
+
 pub struct Editor<'a> {
     commands: Vec<String>,
     mode: Mode,
@@ -155,11 +164,7 @@ impl<'a> Editor<'a> {
         let height = terminal.size().height as f32;
         let width = terminal.size().width as f32;
 
-        let command_window = init_command_window(width, height);
-        let save_window = init_save_window(width, height);
-        let mut windows: HashMap<String, Window> = HashMap::new();
-        windows.insert("command".to_string(), command_window);
-        windows.insert("save".to_string(), save_window);
+        let windows = update_windows_dimensions(width, height);
 
         let commands = vec!["SAVE FILE".to_string(), "QUIT".to_string()];
 
@@ -176,6 +181,7 @@ impl<'a> Editor<'a> {
             windows,
         }
     }
+
 
     pub fn has_event(&self, timeout: Duration) -> bool {
         match poll(timeout) {
@@ -227,6 +233,11 @@ impl<'a> Editor<'a> {
                 break;
             } else if self.mode != Mode::Command {
                 self.terminal.update_dimensions();
+                let dimensions = self.terminal.size();
+                let width = dimensions.width as f32;
+                let height = dimensions.height as f32;
+                self.windows = update_windows_dimensions(width, height);
+
                 self.draw_rows();
                 self.draw_status_bar();
                 self.draw_message_bar();
@@ -361,12 +372,12 @@ impl<'a> Editor<'a> {
                                     }
                                 }
 
-                                if (x >= width && y < doc_height.saturating_sub(1)) || index == 0 {
+                                if (x >= width && y < doc_height.saturating_sub(1)) && index == 0 {
                                     y += 1;
                                     x = 0;
+                                } else if index == 0 {
+                                    x = width;
                                 } else {
-                                    // NOTE: This will need fixing, different behaviour when
-                                    // non ascii alphabetic characters appear.
                                     x = x.saturating_add(index);
                                 }
                             }
@@ -630,7 +641,9 @@ impl<'a> Editor<'a> {
         };
 
         let line_number = format!("{}/{}: {}%", current_line, rows, percentage);
-        let spaces = " ".repeat(width - status.len() - line_number.len());
+        let left_half = width.saturating_sub(status.len());
+        let right_half = left_half.saturating_sub(line_number.len());
+        let spaces = " ".repeat(right_half);
 
         self.terminal.set_bg_color(STATUS_BAR_BG_COLOUR);
         self.terminal.set_fg_color(STATUS_FG_COLOUR);

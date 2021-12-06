@@ -67,33 +67,33 @@ impl Document {
     }
 
     pub fn delete(&mut self, at: &Position) {
-        let current_row = self.rows.get_mut(at.y).unwrap();
+        if let Some(current_row) = self.rows.get_mut(at.y) {
+            if current_row.string.len() == 0 {
+                // Removing rows, wemoving empty lines
+                self.rows.remove(at.y);
+            } else if at.x == 0 && at.y != 0 {
+                // removing rows, appending the line below to the current line.
+                let current_row = self.rows.get_mut(at.y).unwrap();
+                let contents = current_row.contents();
 
-        if current_row.string.len() == 0 {
-            // Removing rows, wemoving empty lines
-            self.rows.remove(at.y);
-        } else if at.x == 0 {
-            // removing rows, appending the line below to the current line.
-            let current_row = self.rows.get_mut(at.y).unwrap();
-            let contents = current_row.contents();
+                let mut row_above_current = self.rows.get_mut(at.y.saturating_sub(1)).unwrap();
+                row_above_current.string = format!("{}{}", row_above_current.string, contents);
 
-            let mut row_above_current = self.rows.get_mut(at.y.saturating_sub(1)).unwrap();
-            row_above_current.string = format!("{}{}", row_above_current.string, contents);
+                self.rows.remove(at.y);
+            } else {
+                // removing the text from the row
+                let current: String = current_row
+                    .string
+                    .graphemes(true)
+                    .take(at.x.saturating_sub(1))
+                    .collect();
 
-            self.rows.remove(at.y);
-        } else {
-            // removing the text from the row
-            let current: String = current_row
-                .string
-                .graphemes(true)
-                .take(at.x.saturating_sub(1))
-                .collect();
+                let remainder: String = current_row.string.graphemes(true).skip(at.x).collect();
 
-            let remainder: String = current_row.string.graphemes(true).skip(at.x).collect();
-
-            let new_row = format!("{}{}", current, remainder);
-            let new_row = Row::from(new_row.as_str());
-            *current_row = new_row;
+                let new_row = format!("{}{}", current, remainder);
+                let new_row = Row::from(new_row.as_str());
+                *current_row = new_row;
+            }
         }
     }
 

@@ -35,6 +35,7 @@ impl<'a> Terminal<'a> {
 
     pub fn update_dimensions(&mut self) {
         let size = size().unwrap();
+        self.clear_screen();
         self.size = Size {
             width: size.0.saturating_sub(1),
             height: size.1.saturating_sub(3),
