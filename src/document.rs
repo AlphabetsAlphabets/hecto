@@ -48,10 +48,13 @@ impl Document {
 impl Document {
     pub fn insert(&mut self, c: char, at: &Position) {
         if self.rows.is_empty() {
+            // NOTE: This is for an empty file. With 0 lines.
             let c = c.to_string();
-            let row = Row::from(c.to_string().as_str());
+            let row = Row::from(c);
             self.rows.push(row);
         } else {
+            // NOTE: If row is empty, the cursor is placed behind the character inserted.
+            // This also happens if insert at the very front of it.
             let row = self.rows.get_mut(at.y).unwrap();
             row.insert(at, c);
         }

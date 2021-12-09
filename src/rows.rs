@@ -71,7 +71,7 @@ impl Row {
 impl Row {
     pub fn insert(&mut self, at: &Position, c: char) {
         if at.x >= self.len {
-            let mut string = self.string.clone().to_string();
+            let mut string = self.string.clone();
             string.push(c);
             self.string = string;
         } else {

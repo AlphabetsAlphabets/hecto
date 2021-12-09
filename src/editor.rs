@@ -19,13 +19,11 @@ use super::rows::Row;
 use super::document;
 use document::Document;
 
-use crossterm::cursor::{position, CursorShape, RestorePosition, SavePosition};
+use crossterm::cursor::{position, CursorShape};
 use crossterm::event::{poll, read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod};
 use crossterm::style::Color;
 use crossterm::terminal::disable_raw_mode;
-use crossterm::{execute, queue};
 
-use std::fs::OpenOptions;
 use std::io::prelude::*;
 
 const STATUS_FG_COLOUR: Color = Color::Rgb {
@@ -81,23 +79,6 @@ impl<T: fmt::Debug> fmt::Debug for Object<T> {
     }
 }
 
-impl<T: fmt::Debug> Object<T> {
-    pub fn log(name: String, obj: T) {
-        let mut file = OpenOptions::new();
-        let mut file = file.append(true).open("log.txt").unwrap();
-
-        let text = format!("{}:{:#?}\n", name, obj);
-        file.write_all(text.as_bytes()).unwrap();
-    }
-
-    pub fn clear() -> Result<(), std::io::Error> {
-        let mut file = OpenOptions::new();
-        file.write(true).truncate(true).open("log.txt").unwrap();
-
-        Ok(())
-    }
-}
-
 fn init_command_window(doc_width: f32, doc_height: f32) -> Window {
     let x1 = (doc_width * 0.2) as u16;
     let x2 = (doc_width * 0.8) as u16;
@@ -147,18 +128,18 @@ impl<'a> Editor<'a> {
         let document = if args.len() > 1 {
             let doc = Document::open(&args[1]);
             if doc.is_ok() {
-                doc.unwrap()
+                doc
             } else {
                 let mut doc = Document::default();
                 initial_status = format!("ERR: Could not open file: {}", doc.filename);
                 doc.filename = "[ERROR COULD NOT OPEN FILE]".to_string();
-                doc
+                Ok(doc)
             }
         } else {
             let mut doc = Document::default();
             doc.filename = "[NO FILE OPENED]".to_string();
-            doc
-        };
+            Ok(doc)
+        }.unwrap();
 
         let terminal = Terminal::new(stdout).expect("Failed to initialize terminal.");
         let height = terminal.size().height as f32;
@@ -184,10 +165,7 @@ impl<'a> Editor<'a> {
 
 
     pub fn has_event(&self, timeout: Duration) -> bool {
-        match poll(timeout) {
-            Ok(has_event) => has_event,
-            Err(_) => false,
-        }
+        poll(timeout).unwrap_or(false)
     }
 
     pub fn refresh_screen(&mut self) -> Result<(), std::io::Error> {
@@ -258,8 +236,8 @@ impl<'a> Editor<'a> {
 
     fn process_keypress(&mut self) -> Result<(), std::io::Error> {
         let pressed_key = read().unwrap();
-        match pressed_key {
-            Event::Key(event) => match event.code {
+        if let Event::Key(event) =  pressed_key {
+            match event.code {
                 Key::Esc => {
                     if self.mode == Mode::Command {
                         self.cursor_position = self.prev_cursor_position;
@@ -268,8 +246,7 @@ impl<'a> Editor<'a> {
                     self.change_mode(Mode::Normal);
                 }
                 _ => self.check_mode(pressed_key),
-            },
-            _ => (),
+            }
         };
 
         self.terminal.stdout.flush().unwrap();
@@ -288,13 +265,15 @@ impl<'a> Editor<'a> {
         let doc_height = self.document.len();
         // the width changes depending on the length of the row
         let mut width = if let Some(row) = self.document.row(y) {
-            row.len
+            // NOTE: sat_sub(X) -> X = 1 then typing messing up.
+            // X = 0 then B, and W breaks.
+            row.len.saturating_sub(1)
         } else {
             0
         };
 
-        match key {
-            Event::Key(event) => match event.code {
+        if let Event::Key(event) =  key {
+            match event.code {
                 Key::Char('k') => y = y.saturating_sub(1),
                 Key::Char('j') => {
                     if y < doc_height.saturating_sub(1) {
@@ -309,7 +288,7 @@ impl<'a> Editor<'a> {
                     } else if y > 0 {
                         y -= 1;
                         if let Some(row) = self.document.row(y) {
-                            x = row.len;
+                            x = row.len.saturating_sub(1);
                         } else {
                             x = 0;
                         }
@@ -327,9 +306,10 @@ impl<'a> Editor<'a> {
 
                 Key::Char('b') => {
                     if let Some(row) = self.document.row(y) {
-                        if let Some(contents) = row.contents().get(..x) {
+                        if let Some(contents) = row.contents().get(..x.saturating_add(1)) {
                             let mut index = 0;
 
+                            // count starts at 0
                             for (count, ch) in contents.chars().rev().enumerate() {
                                 // NOTE: Still buggy, run once in nvim then in hecto to see problem.
                                 if ch == ' ' {
@@ -338,12 +318,17 @@ impl<'a> Editor<'a> {
                                 }
                             }
 
-                            if ((y < doc_height && x == 0) && y > 0) || index == 0 {
+                            if y > 0 && x == 0 {
                                 y -= 1;
-                                x = row.len + 2;
+                                let row = self.document.row(y).unwrap();
+                                x = row.len.saturating_sub(1);
                             } else {
                                 x = x.saturating_sub(index);
                             }
+                        } else {
+                            y -= 1;
+                            let row = self.document.row(y).unwrap();
+                            x = row.len.saturating_sub(1);
                         }
                     }
                 }
@@ -372,11 +357,11 @@ impl<'a> Editor<'a> {
                                     }
                                 }
 
-                                if (x >= width && y < doc_height.saturating_sub(1)) && index == 0 {
+                                if (x >= width && y < doc_height.saturating_sub(1)) || index == 0 {
                                     y += 1;
                                     x = 0;
                                 } else if index == 0 {
-                                    x = width;
+                                    x = width.saturating_sub(1);
                                 } else {
                                     x = x.saturating_add(index);
                                 }
@@ -420,12 +405,13 @@ impl<'a> Editor<'a> {
                 }
                 Key::Char('0') => x = 0,
                 Key::Char('S') => {
+                    // Moves to start of the line, minus the whitespace.
                     if let Some(row) = self.document.row(y) {
                         let contents = row.string.trim_start();
-                        x = width - contents.len();
+                        x = width.saturating_sub(contents.len());
                     }
                 }
-                Key::Char('s') => x = width.saturating_sub(1),
+                Key::Char('s') => x = width.saturating_sub(0),
 
                 // changing modes
                 Key::Char('i') => self.change_mode(Mode::Insert),
@@ -449,13 +435,12 @@ impl<'a> Editor<'a> {
                 }
 
                 _ => (),
-            },
-            _ => (),
+            }
         }
 
         // adjusts the width the the length of the row
         width = if let Some(row) = self.document.row(y) {
-            row.len
+            row.len.saturating_sub(0)
         } else {
             0
         };
@@ -464,14 +449,14 @@ impl<'a> Editor<'a> {
         // the x pos of the cursor will be set to the width
         // snapping it to the end of the line.
         if x > width {
-            x = width;
+            x = width
         }
 
         self.cursor_position = Position { x, y }
     }
 
     fn command_mode(&mut self, key: Event) {
-        if let Some(mut window) = self.windows.get_mut("command") {
+        if let Some(window) = self.windows.get_mut("command") {
             // This x moves the visible cursor.
             let Position { mut x, .. } = self.cursor_position;
 
@@ -489,15 +474,15 @@ impl<'a> Editor<'a> {
             self.terminal.set_cursor_position(&self.cursor_position);
 
             // NOTE: self cannot be used inside the match arms.
-            match key {
-                Event::Key(event) => match event.code {
+            if let Event::Key(event) =  key {
+                match event.code {
                     Key::Char(c) => {
                         let move_by = window.insert(c, x);
                         x += move_by;
                     }
 
                     Key::Backspace => {
-                        let move_by = window.delete(&self.cursor_position);
+                        let move_by = window.delete();
                         x -= move_by;
                     }
 
@@ -522,8 +507,7 @@ impl<'a> Editor<'a> {
                     }
 
                     _ => (),
-                },
-                _ => (),
+                }
             }
 
             self.cursor_position = Position::from((x, y));
@@ -533,8 +517,27 @@ impl<'a> Editor<'a> {
     }
 
     fn insert_mode(&mut self, key: Event) {
-        match key {
-            Event::Key(event) => match event.code {
+        if let Event::Key(event) = key {
+            match event.code {
+                Key::Left => {
+                    let h_key_event = self.create_event(Key::Char('h'), Mod::NONE);
+                    self.normal_mode(h_key_event);
+                }
+                Key::Right => {
+                    let l_key_event = self.create_event(Key::Char('l'), Mod::NONE);
+                    self.normal_mode(l_key_event);
+                }
+
+                Key::Up => {
+                    let k_key_event = self.create_event(Key::Char('k'), Mod::NONE);
+                    self.normal_mode(k_key_event);
+                }
+
+                Key::Down => {
+                    let j_key_event = self.create_event(Key::Char('j'), Mod::NONE);
+                    self.normal_mode(j_key_event);
+                }
+
                 Key::Esc => {
                     self.change_mode(Mode::Normal);
                 }
@@ -566,8 +569,7 @@ impl<'a> Editor<'a> {
                     self.normal_mode(l_key_event);
                 }
                 _ => (),
-            },
-            _ => (),
+            }
         }
     }
 

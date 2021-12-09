@@ -5,7 +5,6 @@ use crossterm::{cursor, queue};
 
 use unicode_segmentation::UnicodeSegmentation;
 
-use super::editor::Object;
 use super::editor::Position;
 use super::rows::Row;
 
@@ -116,7 +115,7 @@ impl Window {
 
         // TODO: If string.len() == even, bar will shift to right or left.
         let top_half = format!("+{} {} {}+", left_half, string, right_half);
-        let difference = (top_half.len() as isize - length_of_border as isize);
+        let difference = top_half.len() as isize - length_of_border as isize;
 
         let repeat = repeat as isize;
         let left_half = if difference > 0 {
@@ -128,6 +127,7 @@ impl Window {
         } else {
             "-".repeat(repeat as usize)
         };
+
 
         let top_half = format!("+{} {} {}+", left_half, string, right_half);
 
@@ -180,7 +180,7 @@ impl Window {
 }
 
 impl Window {
-    pub fn delete(&mut self, at: &Position) -> usize {
+    pub fn delete(&mut self) -> usize {
         if let Some(string) = &self.string {
             if string.len() > 0 {
                 let mut text: String = string.clone().graphemes(true).collect();
