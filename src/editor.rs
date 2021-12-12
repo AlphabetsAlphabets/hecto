@@ -267,7 +267,7 @@ impl<'a> Editor<'a> {
         let mut width = if let Some(row) = self.document.row(y) {
             // NOTE: sat_sub(X) -> X = 1 then typing messing up.
             // X = 0 then B, and W breaks.
-            row.len.saturating_sub(1)
+            row.len.saturating_sub(0)
         } else {
             0
         };
@@ -296,9 +296,9 @@ impl<'a> Editor<'a> {
                 }
 
                 Key::Char('l') => {
-                    if x < width {
+                    if x < width.saturating_sub(1) {
                         x += 1;
-                    } else if y < doc_height.saturating_sub(1) {
+                    } else if y < doc_height.saturating_sub(1) && x >= width.saturating_sub(1) {
                         y += 1;
                         x = 0;
                     }
@@ -322,13 +322,18 @@ impl<'a> Editor<'a> {
                                 y -= 1;
                                 let row = self.document.row(y).unwrap();
                                 x = row.len.saturating_sub(1);
+                            } else if index == 0 {
+                                x = 0;
                             } else {
                                 x = x.saturating_sub(index);
                             }
                         } else {
-                            y -= 1;
+                            // NOTE: If there is white space at the front, it goes through one character by one character.
+                            // It doesn't skip straight to the non white-space character
+                            y = y.saturating_sub(1);
                             let row = self.document.row(y).unwrap();
                             x = row.len.saturating_sub(1);
+                            todo!();
                         }
                     }
                 }
@@ -346,7 +351,8 @@ impl<'a> Editor<'a> {
                         }
                     } else {
                         if let Some(row) = self.document.row(y) {
-                            // NOTE: get(x..) -> x is included
+                            // NOTE: If there is white space at the front, it goes through one character by one character.
+                            // It doesn't skip straight to the non white-space character
                             if let Some(contents) = row.contents().get(x..) {
                                 let mut index = 0;
 
@@ -357,7 +363,7 @@ impl<'a> Editor<'a> {
                                     }
                                 }
 
-                                if (x >= width && y < doc_height.saturating_sub(1)) || index == 0 {
+                                if y < doc_height.saturating_sub(1) && x >= width.saturating_sub(1) {
                                     y += 1;
                                     x = 0;
                                 } else if index == 0 {
@@ -409,9 +415,10 @@ impl<'a> Editor<'a> {
                     if let Some(row) = self.document.row(y) {
                         let contents = row.string.trim_start();
                         x = width.saturating_sub(contents.len());
+                        x = x.saturating_sub(1);
                     }
                 }
-                Key::Char('s') => x = width.saturating_sub(0),
+                Key::Char('s') => x = width.saturating_sub(1),
 
                 // changing modes
                 Key::Char('i') => self.change_mode(Mode::Insert),
@@ -419,6 +426,11 @@ impl<'a> Editor<'a> {
                 Key::Char(':') => {
                     self.prev_cursor_position = self.cursor_position;
                     self.change_mode(Mode::Command);
+                }
+
+                Key::Char('a') => {
+                    x = x.saturating_add(1);
+                    self.change_mode(Mode::Insert);
                 }
 
                 Key::Char('A') => {
@@ -444,6 +456,7 @@ impl<'a> Editor<'a> {
         } else {
             0
         };
+
 
         // if the cursor is further than the width
         // the x pos of the cursor will be set to the width
