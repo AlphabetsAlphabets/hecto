@@ -69,6 +69,8 @@ impl Row {
 
 // Text related
 impl Row {
+    /// at: &Position, c: char
+    /// Inserts a character
     pub fn insert(&mut self, at: &Position, c: char) {
         if at.x >= self.len {
             let mut string = self.string.clone();

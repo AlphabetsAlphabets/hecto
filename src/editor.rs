@@ -265,9 +265,7 @@ impl<'a> Editor<'a> {
         let doc_height = self.document.len();
         // the width changes depending on the length of the row
         let mut width = if let Some(row) = self.document.row(y) {
-            // NOTE: sat_sub(X) -> X = 1 then typing messing up.
-            // X = 0 then B, and W breaks.
-            row.len.saturating_sub(0)
+            row.len.saturating_sub(1)
         } else {
             0
         };
@@ -296,9 +294,11 @@ impl<'a> Editor<'a> {
                 }
 
                 Key::Char('l') => {
-                    if x < width.saturating_sub(1) {
+                    // NOTE: X < Y.sat_sub(Z) if Z = 1 then typing is messed up.
+                    // todo!("Read the comment");
+                    if x < width {
                         x += 1;
-                    } else if y < doc_height.saturating_sub(1) && x >= width.saturating_sub(1) {
+                    } else if y < doc_height.saturating_sub(1) {
                         y += 1;
                         x = 0;
                     }
@@ -452,7 +452,7 @@ impl<'a> Editor<'a> {
 
         // adjusts the width the the length of the row
         width = if let Some(row) = self.document.row(y) {
-            row.len.saturating_sub(0)
+            row.len
         } else {
             0
         };
@@ -611,10 +611,10 @@ impl<'a> Editor<'a> {
     fn draw_row(&self, row: &Row) {
         let width = self.terminal.size().width as usize;
         let start = self.offset.x;
-        let end = self.offset.x + width;
+        let end = self.offset.x.saturating_add(width);
         let row = row.render(start, end);
 
-        println!("{}\r", row);
+        println!("{}\r", row)
     }
 
     fn scroll(&mut self) {
