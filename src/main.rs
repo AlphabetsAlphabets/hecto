@@ -1,6 +1,7 @@
 mod editor;
 use editor::Editor;
 
+mod gap_buffer;
 mod document;
 mod modes;
 mod rows;

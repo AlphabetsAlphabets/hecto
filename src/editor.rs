@@ -14,7 +14,7 @@ use super::modes::Mode;
 use super::status_message::StatusMessage;
 use super::window::Window;
 
-use super::rows::Row;
+use super::gap_buffer::GapBuffer;
 
 use super::document;
 use document::Document;
@@ -179,9 +179,9 @@ impl<'a> Editor<'a> {
 
             if let Some(window) = self.windows.get_mut("command") {
                 if let Some(string) = window.string.clone() {
-                    let mut text_entry = Row::from(string.clone().as_str());
-                    text_entry.string = "".to_string();
-                    window.string = Some(text_entry.string);
+                    let mut text_entry = GapBuffer::from(string.clone());
+                    text_entry.chs = vec![' '];
+                    window.string = Some(text_entry.line());
                 }
             }
 
@@ -264,8 +264,8 @@ impl<'a> Editor<'a> {
 
         let doc_height = self.document.len();
         // the width changes depending on the length of the row
-        let mut width = if let Some(row) = self.document.row(y) {
-            row.len.saturating_sub(1)
+        let mut width = if let Some(buffer) = self.document.buffer(y) {
+            buffer.len.saturating_sub(1)
         } else {
             0
         };
@@ -285,8 +285,8 @@ impl<'a> Editor<'a> {
                         x -= 1;
                     } else if y > 0 {
                         y -= 1;
-                        if let Some(row) = self.document.row(y) {
-                            x = row.len.saturating_sub(1);
+                        if let Some(buffer) = self.document.buffer(y) {
+                            x = buffer.len.saturating_sub(1);
                         } else {
                             x = 0;
                         }
@@ -305,8 +305,8 @@ impl<'a> Editor<'a> {
                 }
 
                 Key::Char('b') => {
-                    if let Some(row) = self.document.row(y) {
-                        if let Some(contents) = row.contents().get(..x.saturating_add(1)) {
+                    if let Some(buffer) = self.document.buffer(y) {
+                        if let Some(contents) = buffer.line().get(..x.saturating_add(1)) {
                             let mut index = 0;
 
                             // count starts at 0
@@ -320,8 +320,8 @@ impl<'a> Editor<'a> {
 
                             if y > 0 && x == 0 {
                                 y -= 1;
-                                let row = self.document.row(y).unwrap();
-                                x = row.len.saturating_sub(1);
+                                let buffer = self.document.buffer(y).unwrap();
+                                x = buffer.len.saturating_sub(1);
                             } else if index == 0 {
                                 x = 0;
                             } else {
@@ -331,8 +331,8 @@ impl<'a> Editor<'a> {
                             // NOTE: If there is white space at the front, it goes through one character by one character.
                             // It doesn't skip straight to the non white-space character
                             y = y.saturating_sub(1);
-                            let row = self.document.row(y).unwrap();
-                            x = row.len.saturating_sub(1);
+                            let buffer = self.document.buffer(y).unwrap();
+                            x = buffer.len.saturating_sub(1);
                             todo!();
                         }
                     }
@@ -346,14 +346,15 @@ impl<'a> Editor<'a> {
                             todo!("This is a shortcut key to save a file.");
                         } else {
                             let status = StatusMessage::from("File written.");
-                            self.document.save_file();
+                            todo!("Can't save file.");
+                            // self.document.save_file();
                             self.status = status;
                         }
                     } else {
-                        if let Some(row) = self.document.row(y) {
+                        if let Some(row) = self.document.buffer(y) {
                             // NOTE: If there is white space at the front, it goes through one character by one character.
                             // It doesn't skip straight to the non white-space character
-                            if let Some(contents) = row.contents().get(x..) {
+                            if let Some(contents) = row.line().get(x..) {
                                 let mut index = 0;
 
                                 for (count, currrent_ch) in contents.chars().enumerate() {
@@ -412,9 +413,9 @@ impl<'a> Editor<'a> {
                 Key::Char('0') => x = 0,
                 Key::Char('S') => {
                     // Moves to start of the line, minus the whitespace.
-                    if let Some(row) = self.document.row(y) {
-                        let contents = row.string.trim_start();
-                        x = width.saturating_sub(contents.len());
+                    if let Some(buffer) = self.document.buffer(y) {
+                        let contents = buffer.line();
+                        x = width.saturating_sub(contents.trim_start().len());
                         x = x.saturating_sub(1);
                     }
                 }
@@ -434,8 +435,8 @@ impl<'a> Editor<'a> {
                 }
 
                 Key::Char('A') => {
-                    let row = self.document.row(y).unwrap();
-                    x = row.len;
+                    let buffer = self.document.buffer(y).unwrap();
+                    x = buffer.len;
 
                     self.change_mode(Mode::Insert);
                 }
@@ -451,8 +452,8 @@ impl<'a> Editor<'a> {
         }
 
         // adjusts the width the the length of the row
-        width = if let Some(row) = self.document.row(y) {
-            row.len
+        width = if let Some(buffer) = self.document.buffer(y) {
+            buffer.len
         } else {
             0
         };
@@ -555,12 +556,14 @@ impl<'a> Editor<'a> {
                     self.change_mode(Mode::Normal);
                 }
                 Key::Backspace => {
-                    self.document.delete(&self.cursor_position);
+                    todo!("Delete ain't working");
+                    // self.document.delete(&self.cursor_position);
                     let h_key_event = self.create_event(Key::Char('h'), Mod::NONE);
                     self.normal_mode(h_key_event);
                 }
                 Key::Enter => {
-                    self.document.enter(&self.cursor_position);
+                    todo!("enter ain't working");
+                    // self.document.enter(&self.cursor_position);
                     let j_key_event = self.create_event(Key::Char('j'), Mod::NONE);
                     let zero_key_event = self.create_event(Key::Char('0'), Mod::NONE);
 
@@ -576,7 +579,8 @@ impl<'a> Editor<'a> {
                     self.insert_mode(space_key_event);
                 }
                 Key::Char(c) => {
-                    self.document.insert(c, &self.cursor_position);
+                    todo!("insert ain't working");
+                    // self.document.insert(c, &self.cursor_position);
                     let l_key_event = self.create_event(Key::Char('l'), Mod::NONE);
 
                     self.normal_mode(l_key_event);
@@ -608,11 +612,11 @@ impl<'a> Editor<'a> {
         println!("{}\r", welcome_message);
     }
 
-    fn draw_row(&self, row: &Row) {
+    fn draw_row(&self, buffer: &GapBuffer) {
         let width = self.terminal.size().width as usize;
         let start = self.offset.x;
         let end = self.offset.x.saturating_add(width);
-        let row = row.render(start, end);
+        let row = buffer.render(start, end);
 
         println!("{}\r", row)
     }
@@ -687,8 +691,8 @@ impl<'a> Editor<'a> {
             self.terminal.clear_current_line();
 
             // NOTE: index = terminal_row + self.offset.y
-            if let Some(row) = self.document.row(terminal_row as usize + self.offset.y) {
-                self.draw_row(row);
+            if let Some(buffer) = self.document.buffer(terminal_row as usize + self.offset.y) {
+                self.draw_row(buffer);
             } else if self.document.is_empty() && terminal_row == height / 3 {
                 self.draw_welcome_message();
             } else {
