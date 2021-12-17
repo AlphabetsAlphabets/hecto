@@ -538,22 +538,22 @@ impl<'a> Editor<'a> {
         if let Event::Key(event) = key {
             match event.code {
                 Key::Left => {
-                    let h_key_event = self.create_event(Key::Char('h'), Mod::NONE);
-                    self.normal_mode(h_key_event);
+                    let h_key = self.create_event(Key::Char('h'), Mod::NONE);
+                    self.normal_mode(h_key);
                 }
                 Key::Right => {
-                    let l_key_event = self.create_event(Key::Char('l'), Mod::NONE);
-                    self.normal_mode(l_key_event);
+                    let l_key = self.create_event(Key::Char('l'), Mod::NONE);
+                    self.normal_mode(l_key);
                 }
 
                 Key::Up => {
-                    let k_key_event = self.create_event(Key::Char('k'), Mod::NONE);
-                    self.normal_mode(k_key_event);
+                    let k_key = self.create_event(Key::Char('k'), Mod::NONE);
+                    self.normal_mode(k_key);
                 }
 
                 Key::Down => {
-                    let j_key_event = self.create_event(Key::Char('j'), Mod::NONE);
-                    self.normal_mode(j_key_event);
+                    let j_key = self.create_event(Key::Char('j'), Mod::NONE);
+                    self.normal_mode(j_key);
                 }
 
                 Key::Esc => {
@@ -561,20 +561,19 @@ impl<'a> Editor<'a> {
                 }
 
                 Key::Backspace => {
-                    todo!("Delete ain't working");
-                    // self.document.delete(&self.cursor_position);
-                    let h_key_event = self.create_event(Key::Char('h'), Mod::NONE);
-                    self.normal_mode(h_key_event);
+                    self.document.delete(&self.cursor_position);
+                    let h_key = self.create_event(Key::Char('h'), Mod::NONE);
+                    self.normal_mode(h_key);
                 }
 
                 Key::Enter => {
                     todo!("enter ain't working");
                     // self.document.enter(&self.cursor_position);
-                    let j_key_event = self.create_event(Key::Char('j'), Mod::NONE);
-                    let zero_key_event = self.create_event(Key::Char('0'), Mod::NONE);
+                    let j_key = self.create_event(Key::Char('j'), Mod::NONE);
+                    let zero_key = self.create_event(Key::Char('0'), Mod::NONE);
 
-                    self.normal_mode(j_key_event);
-                    self.normal_mode(zero_key_event);
+                    self.normal_mode(j_key);
+                    self.normal_mode(zero_key);
                 }
 
                 Key::Tab => {

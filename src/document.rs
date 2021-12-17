@@ -3,7 +3,6 @@ use std::io::prelude::*;
 
 use super::gap_buffer::GapBuffer;
 use super::editor::Position;
-use super::rows::Row;
 
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -20,7 +19,8 @@ impl Document {
         let contents = fs::read_to_string(filename)?;
         let mut gap_buffer = vec![];
         for line in contents.lines() {
-            let buffer = GapBuffer::new(line);
+            let line = line.graphemes(true).collect::<String>();
+            let buffer = GapBuffer::new(line.as_str());
             gap_buffer.push(buffer);
         }
 
@@ -58,6 +58,19 @@ impl Document {
     }
 
     pub fn delete(&mut self, at: &Position) {
+        let mut current = self.gap_buffer.get(at.y).unwrap().clone(); 
+        if at.x == 0 && at.y > 0 {
+            let mut above = self.gap_buffer.get(at.y - 1).unwrap().clone();
+            let mut current = current.clone();
+
+            above.chs.append(&mut current.chs);
+            above.update_len(above.chs.clone());
+
+            self.gap_buffer.remove(at.y);
+            todo!("This isn't working properly");
+        } else {
+            current.delete(at.x);
+        }
     }
 
     fn truncate_and_open_file(&self) -> Result<fs::File, std::io::Error> {

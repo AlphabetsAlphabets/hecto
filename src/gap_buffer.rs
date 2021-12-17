@@ -2,6 +2,7 @@ use std::fmt;
 use std::cmp;
 
 use unicode_segmentation::UnicodeSegmentation;
+use super::editor::Position;
 use std::io::prelude::*;
 
 #[derive(Default, Clone)]
@@ -34,7 +35,7 @@ impl From<String> for GapBuffer {
 }
 
 impl GapBuffer {
-    fn update_len(&mut self, new: Vec<char>) {
+    pub fn update_len(&mut self, new: Vec<char>) {
         self.len = new.len()
     }
 
@@ -89,19 +90,6 @@ impl GapBuffer {
         println!("{}\n{}\n", indexes, output);
     }
 
-    fn left(&mut self) {
-        self.cur_pos -= 1;
-    }
-
-    fn right(&mut self) {
-        self.cur_pos += 1;
-    }
-
-    fn grow(&mut self, ch: char, at: usize) {
-        self.chs.push('_');
-        self.insert(ch, at);
-    }
-
     pub fn insert(&mut self, ch: char, x: usize) {
         if x >= self.chs.len() {
             self.chs.push(ch);
@@ -113,5 +101,17 @@ impl GapBuffer {
 
         self.update_len(self.chs.clone());
     }
+
+    pub fn delete(&mut self, x: usize) {
+        let len = self.chs.len();
+        if x >= len {
+            self.chs.pop();
+        } else {
+            self.chs.remove(x);
+        }
+
+        self.update_len(self.chs.clone());
+    }
+
 }
 
