@@ -34,6 +34,10 @@ impl From<String> for GapBuffer {
 }
 
 impl GapBuffer {
+    fn update_len(&mut self, new: Vec<char>) {
+        self.len = new.len()
+    }
+
     pub fn new(chs: &str) -> Self {
         let mut buffer = vec![];
         for ch in chs.chars() {
@@ -89,23 +93,25 @@ impl GapBuffer {
         self.cur_pos -= 1;
     }
 
-    fn right(&mut self, ch: char) {
+    fn right(&mut self) {
         self.cur_pos += 1;
     }
 
-    fn grow(&mut self, ch: char) {
+    fn grow(&mut self, ch: char, at: usize) {
         self.chs.push('_');
-        self.insert(ch);
+        self.insert(ch, at);
     }
 
-    pub fn insert(&mut self, character: char) {
-        if let Some(ch) = self.chs.get_mut(self.cur_pos) {
-            *ch = character;
-            let right = ch.clone();
-            self.right(right);
+    pub fn insert(&mut self, ch: char, x: usize) {
+        if x >= self.chs.len() {
+            self.chs.push(ch);
+        } else if x == 0 {
+            self.chs.insert(0, ch);
         } else {
-            self.grow(character);
+            self.chs.insert(x, ch);
         }
+
+        self.update_len(self.chs.clone());
     }
 }
 

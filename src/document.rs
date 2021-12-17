@@ -43,27 +43,30 @@ impl Document {
 }
 
 // Functions related to typing
-// impl Document {
-//     pub fn insert(&mut self, c: char, at: &Position) {
-//     }
-// 
-//     pub fn enter(&mut self, at: &Position) {
-//         self.insert_newline(at);
-//     }
-// 
-//     fn insert_newline(&mut self, at: &Position) {
-//     }
-// 
-//     pub fn delete(&mut self, at: &Position) {
-//     }
-// 
-//     fn truncate_and_open_file(&self) -> Result<fs::File, std::io::Error> {
-//         let mut file = fs::OpenOptions::new();
-//         file.write(true).truncate(true).open(&self.filename)
-//     }
-// 
-//     pub fn save_file(&mut self) {
-//         if let Ok(mut file) = self.truncate_and_open_file() {
-//         }
-//     }
-// }
+impl Document {
+    pub fn insert(&mut self, c: char, at: &Position) {
+        if let Some(buffer) = self.gap_buffer.get_mut(at.y) {
+            buffer.insert(c, at.x);
+        }
+    }
+
+    pub fn enter(&mut self, at: &Position) {
+        self.insert_newline(at);
+    }
+
+    fn insert_newline(&mut self, at: &Position) {
+    }
+
+    pub fn delete(&mut self, at: &Position) {
+    }
+
+    fn truncate_and_open_file(&self) -> Result<fs::File, std::io::Error> {
+        let mut file = fs::OpenOptions::new();
+        file.write(true).truncate(true).open(&self.filename)
+    }
+
+    pub fn save_file(&mut self) {
+        if let Ok(mut file) = self.truncate_and_open_file() {
+        }
+    }
+}

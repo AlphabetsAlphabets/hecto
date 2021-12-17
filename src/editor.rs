@@ -242,7 +242,11 @@ impl<'a> Editor<'a> {
                     if self.mode == Mode::Command {
                         self.cursor_position = self.prev_cursor_position;
                         self.terminal.set_cursor_position(&self.cursor_position);
+                    } else if self.mode == Mode::Insert {
+                        self.cursor_position.x = self.cursor_position.x.saturating_sub(1);
+                        self.terminal.set_cursor_position(&self.cursor_position);
                     }
+
                     self.change_mode(Mode::Normal);
                 }
                 _ => self.check_mode(pressed_key),
@@ -298,7 +302,7 @@ impl<'a> Editor<'a> {
                     // todo!("Read the comment");
                     if x < width {
                         x += 1;
-                    } else if y < doc_height.saturating_sub(1) {
+                    } else if y < doc_height.saturating_sub(1) && x >= width {
                         y += 1;
                         x = 0;
                     }
@@ -555,12 +559,14 @@ impl<'a> Editor<'a> {
                 Key::Esc => {
                     self.change_mode(Mode::Normal);
                 }
+
                 Key::Backspace => {
                     todo!("Delete ain't working");
                     // self.document.delete(&self.cursor_position);
                     let h_key_event = self.create_event(Key::Char('h'), Mod::NONE);
                     self.normal_mode(h_key_event);
                 }
+
                 Key::Enter => {
                     todo!("enter ain't working");
                     // self.document.enter(&self.cursor_position);
@@ -570,20 +576,14 @@ impl<'a> Editor<'a> {
                     self.normal_mode(j_key_event);
                     self.normal_mode(zero_key_event);
                 }
+
                 Key::Tab => {
-                    let space_key_event = self.create_event(Key::Char(' '), Mod::NONE);
-
-                    self.insert_mode(space_key_event);
-                    self.insert_mode(space_key_event);
-                    self.insert_mode(space_key_event);
-                    self.insert_mode(space_key_event);
+                    self.cursor_position.x += 4;
                 }
-                Key::Char(c) => {
-                    todo!("insert ain't working");
-                    // self.document.insert(c, &self.cursor_position);
-                    let l_key_event = self.create_event(Key::Char('l'), Mod::NONE);
 
-                    self.normal_mode(l_key_event);
+                Key::Char(c) => {
+                    self.document.insert(c, &self.cursor_position);
+                    self.cursor_position.x += 1;
                 }
                 _ => (),
             }
@@ -618,7 +618,7 @@ impl<'a> Editor<'a> {
         let end = self.offset.x.saturating_add(width);
         let row = buffer.render(start, end);
 
-        println!("{}\r", row)
+        println!("{}", row)
     }
 
     fn scroll(&mut self) {
