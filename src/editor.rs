@@ -423,7 +423,7 @@ impl<'a> Editor<'a> {
                         x = x.saturating_sub(1);
                     }
                 }
-                Key::Char('s') => x = width.saturating_sub(1),
+                Key::Char('s') => x = width,
 
                 // changing modes
                 Key::Char('i') => self.change_mode(Mode::Insert),
@@ -535,6 +535,7 @@ impl<'a> Editor<'a> {
     }
 
     fn insert_mode(&mut self, key: Event) {
+        let Position { mut x, mut y } = &self.cursor_position;
         if let Event::Key(event) = key {
             match event.code {
                 Key::Left => {
@@ -561,32 +562,68 @@ impl<'a> Editor<'a> {
                 }
 
                 Key::Backspace => {
-                    self.document.delete(&self.cursor_position);
-                    let h_key = self.create_event(Key::Char('h'), Mod::NONE);
-                    self.normal_mode(h_key);
+                    // NOTE: `above` is called here because after `delete`, `above` will have been modified.
+                    let above = self.document.buffer(y - 1).unwrap().clone();
+                    let shift = self.document.delete(&self.cursor_position);
+                    if !shift {
+                        x -= 1;
+                    } else {
+                        x = above.len;
+                        y = y.saturating_sub(1);
+                    }
                 }
 
                 Key::Enter => {
-                    todo!("enter ain't working");
-                    // self.document.enter(&self.cursor_position);
-                    let j_key = self.create_event(Key::Char('j'), Mod::NONE);
-                    let zero_key = self.create_event(Key::Char('0'), Mod::NONE);
+                    // let width = self.terminal.size().width as usize; yay
+                    self.document.enter(&self.cursor_position);
+                    let ws_count = self.check_current_then_below_for_whitespace(y);
 
-                    self.normal_mode(j_key);
-                    self.normal_mode(zero_key);
+                    x = ws_count;
+                    y += 1;
+                    if ws_count != 0 {
+                        if let Some(buffer) = self.document.buffer_mut(y) {
+                            for ws in 0..(ws_count as u8) {
+                                buffer.insert(' ', ws as usize);
+                            }
+                        }
+                    }
                 }
 
                 Key::Tab => {
-                    self.cursor_position.x += 4;
+                    x += 4;
                 }
 
                 Key::Char(c) => {
                     self.document.insert(c, &self.cursor_position);
-                    self.cursor_position.x += 1;
+                    x += 1;
                 }
                 _ => (),
             }
         }
+
+        self.cursor_position.x = x;
+        self.cursor_position.y = y;
+    }
+
+    fn check_current_then_below_for_whitespace(&self, y: usize) -> usize {
+        let mut ws_count = 0;
+        if let Some(buffer) = self.document.buffer(y) {
+            let contents = buffer.line();
+            for ch in contents.as_bytes() {
+                let ch = *ch as char;
+                if ws_count == 0 && !ch.is_whitespace() {
+                    ws_count = self.check_current_then_below_for_whitespace(y + 1);
+                    break;
+                } else if ch.is_whitespace() {
+                    ws_count += 1;
+                } else if ws_count > 0 && !ch.is_whitespace() {
+                    // This one is used to break after the first non-ws character is reached.
+                    break;
+                }
+            }
+        }
+
+        ws_count
     }
 
     fn create_event(&self, key: Key, modifier: Mod) -> Event {
@@ -640,6 +677,7 @@ impl<'a> Editor<'a> {
     }
 
     fn draw_status_bar(&mut self) {
+        // NOTE: The current issue is that the status bar will make space for the text in the document.
         let width = self.terminal.size().width as usize;
         let filename = if let Some(filename) = self.document.filename.get(..21) {
             filename.to_string()

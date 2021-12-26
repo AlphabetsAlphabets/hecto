@@ -35,8 +35,12 @@ impl From<String> for GapBuffer {
 }
 
 impl GapBuffer {
-    pub fn update_len(&mut self, new: Vec<char>) {
-        self.len = new.len()
+    pub fn update_len(&mut self) {
+        self.len = self.chs.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.chs.is_empty()
     }
 
     pub fn new(chs: &str) -> Self {
@@ -99,7 +103,14 @@ impl GapBuffer {
             self.chs.insert(x, ch);
         }
 
-        self.update_len(self.chs.clone());
+        self.update_len();
+    }
+
+    pub fn insert_newline(&mut self) {
+        self.chs = vec!['\n'];
+    }
+
+    pub fn enter(&mut self) {
     }
 
     pub fn delete(&mut self, x: usize) {
@@ -110,8 +121,17 @@ impl GapBuffer {
             self.chs.remove(x);
         }
 
-        self.update_len(self.chs.clone());
+        self.update_len();
     }
 
+    pub fn split(&mut self, at: usize) -> Self {
+        let start: Vec<char> = self.chs.iter().take(at).copied().collect();
+        let end: Vec<char> = self.chs.iter().skip(at).copied().collect();
+        let end: String = end.iter().collect();
+
+        self.chs = start;
+        self.update_len();
+        Self::from(end)
+    }
 }
 
