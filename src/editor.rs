@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::env;
 
-use std::io::StdoutLock;
+use std::io;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -108,12 +108,12 @@ fn update_windows_dimensions(width: f32, height: f32) -> HashMap<String, Window>
     windows
 }
 
-pub struct Editor<'a> {
+pub struct Editor {
     commands: Vec<String>,
     mode: Mode,
     offset: Position,
     document: Document,
-    terminal: Terminal<'a>,
+    terminal: Terminal,
     cursor_position: Position,
     should_quit: bool,
     status: StatusMessage,
@@ -121,8 +121,8 @@ pub struct Editor<'a> {
     prev_cursor_position: Position,
 }
 
-impl<'a> Editor<'a> {
-    pub fn new(stdout: StdoutLock<'a>) -> Self {
+impl Editor {
+    pub fn new(stdout: io::Stdout) -> Self {
         let args: Vec<String> = env::args().collect();
         let mut initial_status = "Press CTRL + Q to QUIT.".to_string();
         let document = if args.len() > 1 {
@@ -337,7 +337,6 @@ impl<'a> Editor<'a> {
                             y = y.saturating_sub(1);
                             let buffer = self.document.buffer(y).unwrap();
                             x = buffer.len.saturating_sub(1);
-                            todo!();
                         }
                     }
                 }
@@ -654,7 +653,7 @@ impl<'a> Editor<'a> {
         let end = self.offset.x.saturating_add(width);
         let row = buffer.render(start, end);
 
-        println!("{}", row)
+        println!("{}\r", row)
     }
 
     fn scroll(&mut self) {
@@ -678,6 +677,7 @@ impl<'a> Editor<'a> {
 
     fn draw_status_bar(&mut self) {
         // NOTE: The current issue is that the status bar will make space for the text in the document.
+        // That should not happen.
         let width = self.terminal.size().width as usize;
         let filename = if let Some(filename) = self.document.filename.get(..21) {
             filename.to_string()

@@ -1,6 +1,7 @@
 mod editor;
 use editor::Editor;
 
+mod ui;
 mod gap_buffer;
 mod document;
 mod modes;
@@ -13,7 +14,6 @@ use std::io::stdout;
 
 fn main() {
     let stdout = stdout();
-    let stdout = stdout.lock();
     let mut editor = Editor::new(stdout);
     editor.run();
 }

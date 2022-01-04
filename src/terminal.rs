@@ -1,4 +1,4 @@
-use std::io::{StdoutLock, Write};
+use std::io::{Stdout, Write};
 
 use super::editor::Position;
 
@@ -12,13 +12,13 @@ pub struct Size {
     pub height: u16,
 }
 
-pub struct Terminal<'a> {
+pub struct Terminal {
     size: Size,
-    pub stdout: StdoutLock<'a>,
+    pub stdout: Stdout,
 }
 
-impl<'a> Terminal<'a> {
-    pub fn new(stdout: StdoutLock<'a>) -> Result<Self, std::io::Error> {
+impl Terminal {
+    pub fn new(stdout: Stdout) -> Result<Self, std::io::Error> {
         let size = size().unwrap();
 
         let term = Self {

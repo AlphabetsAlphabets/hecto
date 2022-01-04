@@ -1,4 +1,4 @@
-use std::io::{StdoutLock, Write};
+use std::io::{StdoutLock, Write, Stdout};
 
 use crossterm::style::Print;
 use crossterm::{cursor, queue};
@@ -41,11 +41,11 @@ impl Window {
         cursor::position().unwrap()
     }
 
-    pub fn draw_all(&self, stdout: &mut StdoutLock) {
+    pub fn draw_all(&self, stdout: &mut Stdout) {
         stdout.flush().unwrap();
     }
 
-    pub fn draw_border(&mut self, stdout: &mut StdoutLock, content: &Vec<String>) {
+    pub fn draw_border(&mut self, stdout: &mut Stdout, content: &Vec<String>) {
         let Self { x1, x2, y1, y2, .. } = *self;
 
         let halves = (x2 - x1 - self.name.len() as u16) as usize / 2;
@@ -103,7 +103,7 @@ impl Window {
         queue!(stdout, cursor::Show).unwrap();
     }
 
-    pub fn draw_text_box(&mut self, stdout: &mut StdoutLock, string: String) -> (u16, u16) {
+    pub fn draw_text_box(&mut self, stdout: &mut Stdout, string: String) -> (u16, u16) {
         let Self { x1, x2, y2, .. } = *self;
         self.cur_pos_before = Position::from(self.get_cursor_position());
 

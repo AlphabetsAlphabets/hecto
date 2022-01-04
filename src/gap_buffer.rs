@@ -19,8 +19,6 @@ impl fmt::Display for GapBuffer {
     }
 }
 
-const NULL_BYTE: char = b'\0' as char;
-
 impl From<String> for GapBuffer {
     fn from(s: String) -> Self {
         let mut buffer = vec![];
@@ -51,6 +49,7 @@ impl GapBuffer {
 
         let len = buffer.len();
 
+        todo!("`buffer` is empty, so the length is zero. Which messes up typing, and navigation.");
         Self { cur_pos: 0, chs: buffer, len }
     }
 
