@@ -1,8 +1,8 @@
 use std::fs;
 use std::io::prelude::*;
 
-use super::gap_buffer::GapBuffer;
 use super::editor::Position;
+use super::gap_buffer::GapBuffer;
 
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -26,7 +26,10 @@ impl Document {
 
         let filename = filename.to_string();
 
-        Ok(Self { gap_buffer, filename })
+        Ok(Self {
+            gap_buffer,
+            filename,
+        })
     }
 
     pub fn is_empty(&self) -> bool {
@@ -87,7 +90,6 @@ impl Document {
     }
 
     pub fn save_file(&mut self) {
-        if let Ok(mut file) = self.truncate_and_open_file() {
-        }
+        if let Ok(mut file) = self.truncate_and_open_file() {}
     }
 }

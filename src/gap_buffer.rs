@@ -1,9 +1,9 @@
-use std::fmt;
 use std::cmp;
+use std::fmt;
 
-use unicode_segmentation::UnicodeSegmentation;
 use super::editor::Position;
 use std::io::prelude::*;
+use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Default, Clone)]
 pub struct GapBuffer {
@@ -28,7 +28,11 @@ impl From<String> for GapBuffer {
 
         let len = buffer.len();
 
-        Self { cur_pos: 0, chs: buffer, len }
+        Self {
+            cur_pos: 0,
+            chs: buffer,
+            len,
+        }
     }
 }
 
@@ -49,8 +53,11 @@ impl GapBuffer {
 
         let len = buffer.len();
 
-        todo!("`buffer` is empty, so the length is zero. Which messes up typing, and navigation.");
-        Self { cur_pos: 0, chs: buffer, len }
+        Self {
+            cur_pos: 0,
+            chs: buffer,
+            len,
+        }
     }
 
     pub fn render(&self, start: usize, end: usize) -> String {
@@ -109,8 +116,7 @@ impl GapBuffer {
         self.chs = vec!['\n'];
     }
 
-    pub fn enter(&mut self) {
-    }
+    pub fn enter(&mut self) {}
 
     pub fn delete(&mut self, x: usize) {
         let len = self.chs.len();
@@ -133,4 +139,3 @@ impl GapBuffer {
         Self::from(end)
     }
 }
-

@@ -1,4 +1,4 @@
-use std::io::{StdoutLock, Write, Stdout};
+use std::io::{Stdout, StdoutLock, Write};
 
 use crossterm::style::Print;
 use crossterm::{cursor, queue};
@@ -127,7 +127,6 @@ impl Window {
         } else {
             "-".repeat(repeat as usize)
         };
-
 
         let top_half = format!("+{} {} {}+", left_half, string, right_half);
 

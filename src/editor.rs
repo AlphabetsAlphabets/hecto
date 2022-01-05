@@ -139,14 +139,14 @@ impl Editor {
             let mut doc = Document::default();
             doc.filename = "[NO FILE OPENED]".to_string();
             Ok(doc)
-        }.unwrap();
+        }
+        .unwrap();
 
         let terminal = Terminal::new(stdout).expect("Failed to initialize terminal.");
         let height = terminal.size().height as f32;
         let width = terminal.size().width as f32;
 
         let windows = update_windows_dimensions(width, height);
-
         let commands = vec!["SAVE FILE".to_string(), "QUIT".to_string()];
 
         Self {
@@ -162,7 +162,6 @@ impl Editor {
             windows,
         }
     }
-
 
     pub fn has_event(&self, timeout: Duration) -> bool {
         poll(timeout).unwrap_or(false)
@@ -236,7 +235,7 @@ impl Editor {
 
     fn process_keypress(&mut self) -> Result<(), std::io::Error> {
         let pressed_key = read().unwrap();
-        if let Event::Key(event) =  pressed_key {
+        if let Event::Key(event) = pressed_key {
             match event.code {
                 Key::Esc => {
                     if self.mode == Mode::Command {
@@ -274,14 +273,31 @@ impl Editor {
             0
         };
 
-        if let Event::Key(event) =  key {
+        if let Event::Key(event) = key {
             match event.code {
-                Key::Char('k') => y = y.saturating_sub(1),
-                Key::Char('j') => {
-                    if y < doc_height.saturating_sub(1) {
-                        y = y.saturating_add(1)
+                Key::Char('k') => { 
+                    y = y.saturating_sub(1); 
+                    if x == width {
+                        let top = self.document.buffer(y).unwrap();
+                        x = top.len.saturating_sub(1);
                     }
                 }
+
+                Key::Char('j') => {
+                    if y < doc_height.saturating_sub(1) {
+                        y = y.saturating_add(1);
+                        if x >= width.saturating_sub(1) {
+                            // NOTE: In the case of an empty line, it will move the cursor to the
+                            // very end of it because the if condition is still true.
+                            let bottom = self.document.buffer(y).unwrap();
+                            x = bottom.len.saturating_sub(1);
+                        }
+                    }
+
+                    // let s_key = self.create_event(Key::Char('s'), Mod::NONE);
+                    // self.normal_mode(s_key);
+                }
+
                 Key::Char('h') => {
                     // lets the user move to the end of the previous line,
                     // if cursor at the start of a line.
@@ -298,8 +314,6 @@ impl Editor {
                 }
 
                 Key::Char('l') => {
-                    // NOTE: X < Y.sat_sub(Z) if Z = 1 then typing is messed up.
-                    // todo!("Read the comment");
                     if x < width {
                         x += 1;
                     } else if y < doc_height.saturating_sub(1) && x >= width {
@@ -367,7 +381,8 @@ impl Editor {
                                     }
                                 }
 
-                                if y < doc_height.saturating_sub(1) && x >= width.saturating_sub(1) {
+                                if y < doc_height.saturating_sub(1) && x >= width.saturating_sub(1)
+                                {
                                     y += 1;
                                     x = 0;
                                 } else if index == 0 {
@@ -461,7 +476,6 @@ impl Editor {
             0
         };
 
-
         // if the cursor is further than the width
         // the x pos of the cursor will be set to the width
         // snapping it to the end of the line.
@@ -491,7 +505,7 @@ impl Editor {
             self.terminal.set_cursor_position(&self.cursor_position);
 
             // NOTE: self cannot be used inside the match arms.
-            if let Event::Key(event) =  key {
+            if let Event::Key(event) = key {
                 match event.code {
                     Key::Char(c) => {
                         let move_by = window.insert(c, x);

@@ -28,9 +28,9 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, size: Rect) {
 
     let create_block = |title: String| {
         Block::default().borders(Borders::ALL).title(Span::styled(
-                title,
-                Style::default().add_modifier(Modifier::BOLD),
-                ))
+            title,
+            Style::default().add_modifier(Modifier::BOLD),
+        ))
     };
 
     let paragraph = Paragraph::new(commands)
