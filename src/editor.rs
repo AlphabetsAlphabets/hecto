@@ -16,6 +16,9 @@ use super::window::Window;
 
 use super::gap_buffer::GapBuffer;
 
+use super::ui::{ui, App};
+use tui::backend::CrosstermBackend;
+
 use super::document;
 use document::Document;
 
@@ -275,8 +278,8 @@ impl Editor {
 
         if let Event::Key(event) = key {
             match event.code {
-                Key::Char('k') => { 
-                    y = y.saturating_sub(1); 
+                Key::Char('k') => {
+                    y = y.saturating_sub(1);
                     if x == width {
                         let top = self.document.buffer(y).unwrap();
                         x = top.len.saturating_sub(1);
@@ -486,7 +489,7 @@ impl Editor {
         self.cursor_position = Position { x, y }
     }
 
-    fn command_mode(&mut self, key: Event) {
+    fn draw_old_window(&mut self, key: Event) {
         if let Some(window) = self.windows.get_mut("command") {
             // This x moves the visible cursor.
             let Position { mut x, .. } = self.cursor_position;
@@ -544,6 +547,33 @@ impl Editor {
             self.cursor_position = Position::from((x, y));
             self.terminal.set_cursor_position(&self.cursor_position);
             window.draw_all(&mut self.terminal.stdout);
+        }
+    }
+
+    fn command_mode(&mut self, key: Event) {
+        if false {
+            // NOTE: Gonna use TUI for this. I will not stop until I can use TUI for this.
+            self.draw_old_window(key);
+        }
+
+        let stdout = io::stdout();
+        let backend = CrosstermBackend::new(stdout);
+        let mut terminal = tui::Terminal::new(backend).unwrap();
+        let mut app = App::default();
+
+        terminal.draw(|f| ui(f, &app)).unwrap();
+
+        if let Event::Key(event) = key {
+            match event.code {
+                Key::Char(c) => {
+                    app.input.push(c);
+                }
+                Key::Backspace => {
+                    app.input.pop();
+                }
+                Key::Esc => (),
+                _ => (),
+            }
         }
     }
 
