@@ -2,7 +2,7 @@
 
 use tui::{
     backend::Backend,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     terminal::Frame,
     text::{Span, Spans},
@@ -31,6 +31,7 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
         )
         .split(size);
 
+    // Clear the area from text to make space for list of commands.
     let block = Block::default().style(Style::default().fg(Color::White));
     f.render_widget(block, chunks[1]);
 
@@ -52,16 +53,13 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
 
     f.render_widget(paragraph, chunks[1]);
 
-    let x = vec![Spans::from("> ")];
-    let paragraph = Paragraph::new(x)
-        .style(Style::default())
-        .block(create_block("Filter".to_string()));
+    // Clear the area from text to make space for input box.
+    let block = Block::default().style(Style::default().fg(Color::White));
+    f.render_widget(block, chunks[2]);
 
     let input = Paragraph::new(app.input.as_ref())
         .style(Style::default())
         .block(Block::default().borders(Borders::ALL).title("Input"));
 
     f.render_widget(input, chunks[2]);
-    // f.render_widget(input, chunks[2]);
-    // f.set_cursor(chunks[1].x + app.input.width() as u16 + 1, chunks[1].y + 1);
 }

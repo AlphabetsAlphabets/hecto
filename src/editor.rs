@@ -22,7 +22,8 @@ use tui::backend::CrosstermBackend;
 use super::document;
 use document::Document;
 
-use crossterm::cursor::{position, CursorShape};
+use crossterm::queue;
+use crossterm::cursor::{position, CursorShape, Hide};
 use crossterm::event::{poll, read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod};
 use crossterm::style::Color;
 use crossterm::terminal::disable_raw_mode;
@@ -561,6 +562,7 @@ impl Editor {
         let mut terminal = tui::Terminal::new(backend).unwrap();
         let mut app = App::default();
 
+        // NOTE: When the window gets to small vertically or horizontally this breaks.
         terminal.draw(|f| ui(f, &app)).unwrap();
 
         if let Event::Key(event) = key {
