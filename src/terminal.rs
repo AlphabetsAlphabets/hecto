@@ -85,4 +85,8 @@ impl Terminal {
         let cursor_shape = cursor::SetCursorShape(cursor_shape);
         execute!(self.stdout, cursor_shape).unwrap();
     }
+
+    pub fn flush(&mut self) {
+        self.stdout.flush().unwrap();
+    }
 }

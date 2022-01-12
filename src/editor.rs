@@ -16,17 +16,19 @@ use super::window::Window;
 
 use super::gap_buffer::GapBuffer;
 
-use super::ui::{ui, App};
+use super::ui::{ui, App, run_app};
 use tui::backend::CrosstermBackend;
 
 use super::document;
 use document::Document;
 
-use crossterm::queue;
-use crossterm::cursor::{position, CursorShape, Hide};
-use crossterm::event::{poll, read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod};
-use crossterm::style::Color;
-use crossterm::terminal::disable_raw_mode;
+use crossterm::{
+    queue,
+    cursor::{position, CursorShape, Hide, Show},
+    event::{poll, read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod},
+    style::Color,
+    terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
 
 use std::io::prelude::*;
 
@@ -112,8 +114,7 @@ fn update_windows_dimensions(width: f32, height: f32) -> HashMap<String, Window>
     windows
 }
 
-pub struct Editor {
-    commands: Vec<String>,
+pub struct Editor<'a> {
     mode: Mode,
     offset: Position,
     document: Document,
@@ -122,10 +123,11 @@ pub struct Editor {
     should_quit: bool,
     status: StatusMessage,
     windows: HashMap<String, Window>,
+    app: App<'a>,
     prev_cursor_position: Position,
 }
 
-impl Editor {
+impl<'a> Editor<'a> {
     pub fn new(stdout: io::Stdout) -> Self {
         let args: Vec<String> = env::args().collect();
         let mut initial_status = "Press CTRL + Q to QUIT.".to_string();
@@ -153,8 +155,9 @@ impl Editor {
         let windows = update_windows_dimensions(width, height);
         let commands = vec!["SAVE FILE".to_string(), "QUIT".to_string()];
 
+        let app = App::default();
+
         Self {
-            commands,
             mode: Mode::Normal,
             offset: Position::default(),
             should_quit: false,
@@ -164,6 +167,7 @@ impl Editor {
             prev_cursor_position: Position { x: 0, y: 0 },
             status: StatusMessage::from(initial_status),
             windows,
+            app
         }
     }
 
@@ -179,16 +183,8 @@ impl Editor {
     fn check_mode(&mut self, key: Event) {
         if self.mode == Mode::Normal {
             self.terminal.change_cursor_shape(CursorShape::Block);
-
-            if let Some(window) = self.windows.get_mut("command") {
-                if let Some(string) = window.string.clone() {
-                    let mut text_entry = GapBuffer::from(string.clone());
-                    text_entry.chs = vec![' '];
-                    window.string = Some(text_entry.line());
-                }
-            }
-
             self.normal_mode(key);
+
         } else if self.mode == Mode::Command {
             self.command_mode(key);
         } else {
@@ -198,6 +194,8 @@ impl Editor {
     }
 
     pub fn run(&mut self) {
+        enable_raw_mode().unwrap();
+        queue!(&mut self.terminal.stdout, EnterAlternateScreen).unwrap();
         if let Err(error) = self.refresh_screen() {
             self.terminal.clear_screen();
             eprintln!("{}", error);
@@ -210,8 +208,9 @@ impl Editor {
             if self.should_quit {
                 self.terminal.clear_screen();
                 disable_raw_mode().unwrap();
-
+                queue!(&mut self.terminal.stdout, EnterAlternateScreen).unwrap();
                 break;
+
             } else if self.mode != Mode::Command {
                 self.terminal.update_dimensions();
                 let dimensions = self.terminal.size();
@@ -243,8 +242,8 @@ impl Editor {
             match event.code {
                 Key::Esc => {
                     if self.mode == Mode::Command {
-                        self.cursor_position = self.prev_cursor_position;
-                        self.terminal.set_cursor_position(&self.cursor_position);
+                        self.app.input.clear();
+                        queue!(&mut self.terminal.stdout, Show).unwrap();
                     } else if self.mode == Mode::Insert {
                         self.cursor_position.x = self.cursor_position.x.saturating_sub(1);
                         self.terminal.set_cursor_position(&self.cursor_position);
@@ -490,93 +489,17 @@ impl Editor {
         self.cursor_position = Position { x, y }
     }
 
-    fn draw_old_window(&mut self, key: Event) {
-        if let Some(window) = self.windows.get_mut("command") {
-            // This x moves the visible cursor.
-            let Position { mut x, .. } = self.cursor_position;
-
-            window.draw_border(&mut self.terminal.stdout, &self.commands);
-            window.draw_text_box(&mut self.terminal.stdout, "FILTER".to_string());
-            let (tb_x, tb_y) = position().unwrap();
-
-            // makes sure the cursor moves forward.
-            if x < tb_x as usize {
-                x = tb_x as usize;
-            }
-
-            let y = tb_y as usize;
-            self.cursor_position = Position::from((x, y));
-            self.terminal.set_cursor_position(&self.cursor_position);
-
-            // NOTE: self cannot be used inside the match arms.
-            if let Event::Key(event) = key {
-                match event.code {
-                    Key::Char(c) => {
-                        let move_by = window.insert(c, x);
-                        x += move_by;
-                    }
-
-                    Key::Backspace => {
-                        let move_by = window.delete();
-                        x -= move_by;
-                    }
-
-                    Key::Enter => {
-                        let string = if let Some(string) = window.string.clone() {
-                            string.to_uppercase().trim().to_string()
-                        } else {
-                            "".to_string()
-                        };
-
-                        if string.is_empty() {
-                            return;
-                        }
-
-                        for command in &self.commands {
-                            todo!("Word for word matching, needs more planning.");
-                            command.contains(&string);
-                        }
-
-                        // todo!("Prompt user for file name.");
-                        // self.document.save_file();
-                    }
-
-                    _ => (),
-                }
-            }
-
-            self.cursor_position = Position::from((x, y));
-            self.terminal.set_cursor_position(&self.cursor_position);
-            window.draw_all(&mut self.terminal.stdout);
-        }
-    }
-
     fn command_mode(&mut self, key: Event) {
-        if false {
-            // NOTE: Gonna use TUI for this. I will not stop until I can use TUI for this.
-            self.draw_old_window(key);
-        }
+        queue!(&mut self.terminal.stdout, Hide).unwrap();
 
         let stdout = io::stdout();
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = tui::Terminal::new(backend).unwrap();
-        let mut app = App::default();
 
-        // NOTE: When the window gets to small vertically or horizontally this breaks.
-        terminal.draw(|f| ui(f, &app)).unwrap();
+        // When the window gets to small vertically or horizontally this breaks.
+        run_app(&mut terminal, &mut self.app, key);
 
-        if let Event::Key(event) = key {
-            match event.code {
-                Key::Char(c) => {
-                    app.input.push(c);
-                }
-                Key::Backspace => {
-                    app.input.pop();
-                }
-                Key::Esc => (),
-                _ => (),
-            }
-        }
+        self.terminal.stdout.flush().unwrap();
     }
 
     fn insert_mode(&mut self, key: Event) {
