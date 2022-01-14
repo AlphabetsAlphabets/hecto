@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::env;
 
 use std::io;
@@ -8,26 +7,27 @@ use std::time::Instant;
 use std::fmt;
 
 use super::terminal;
+use crossterm::cursor::Hide;
 use terminal::Terminal;
 
 use super::modes::Mode;
 use super::status_message::StatusMessage;
-use super::window::Window;
 
 use super::gap_buffer::GapBuffer;
 
-use super::ui::{ui, App, run_app};
+use super::ui::{App, run_app};
 use tui::backend::CrosstermBackend;
 
 use super::document;
 use document::Document;
 
 use crossterm::{
+    execute,
     queue,
-    cursor::{position, CursorShape, Hide, Show},
+    cursor::CursorShape,
     event::{poll, read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod},
     style::Color,
-    terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen},
 };
 
 use std::io::prelude::*;
@@ -85,35 +85,6 @@ impl<T: fmt::Debug> fmt::Debug for Object<T> {
     }
 }
 
-fn init_command_window(doc_width: f32, doc_height: f32) -> Window {
-    let x1 = (doc_width * 0.2) as u16;
-    let x2 = (doc_width * 0.8) as u16;
-
-    let y1 = (doc_height * 0.2) as u16;
-    let y2 = (doc_height * 0.8) as u16;
-
-    Window::new("command".to_string(), x1, x2, y1, y2)
-}
-
-fn init_save_window(doc_width: f32, doc_height: f32) -> Window {
-    let x1 = (doc_width * 0.2) as u16;
-    let x2 = (doc_width * 0.8) as u16;
-
-    let y1 = (doc_height * 0.5) as u16;
-    let y2 = y1 + 3;
-
-    Window::new("save".to_string(), x1, x2, y1, y2)
-}
-
-fn update_windows_dimensions(width: f32, height: f32) -> HashMap<String, Window> {
-    let command_window = init_command_window(width, height);
-    let save_window = init_save_window(width, height);
-    let mut windows: HashMap<String, Window> = HashMap::new();
-    windows.insert("command".to_string(), command_window);
-    windows.insert("save".to_string(), save_window);
-    windows
-}
-
 pub struct Editor<'a> {
     mode: Mode,
     offset: Position,
@@ -122,9 +93,7 @@ pub struct Editor<'a> {
     cursor_position: Position,
     should_quit: bool,
     status: StatusMessage,
-    windows: HashMap<String, Window>,
     app: App<'a>,
-    prev_cursor_position: Position,
 }
 
 impl<'a> Editor<'a> {
@@ -152,7 +121,6 @@ impl<'a> Editor<'a> {
         let height = terminal.size().height as f32;
         let width = terminal.size().width as f32;
 
-        let windows = update_windows_dimensions(width, height);
         let commands = vec!["SAVE FILE".to_string(), "QUIT".to_string()];
 
         let app = App::default();
@@ -164,9 +132,7 @@ impl<'a> Editor<'a> {
             document,
             terminal,
             cursor_position: Position { x: 0, y: 0 },
-            prev_cursor_position: Position { x: 0, y: 0 },
             status: StatusMessage::from(initial_status),
-            windows,
             app
         }
     }
@@ -213,10 +179,6 @@ impl<'a> Editor<'a> {
 
             } else if self.mode != Mode::Command {
                 self.terminal.update_dimensions();
-                let dimensions = self.terminal.size();
-                let width = dimensions.width as f32;
-                let height = dimensions.height as f32;
-                self.windows = update_windows_dimensions(width, height);
 
                 self.draw_rows();
                 self.draw_status_bar();
@@ -233,6 +195,8 @@ impl<'a> Editor<'a> {
             if let Err(error) = self.process_keypress() {
                 eprintln!("{}", error);
             };
+
+            self.terminal.flush();
         }
     }
 
@@ -241,12 +205,8 @@ impl<'a> Editor<'a> {
         if let Event::Key(event) = pressed_key {
             match event.code {
                 Key::Esc => {
-                    if self.mode == Mode::Command {
-                        self.app.input.clear();
-                        queue!(&mut self.terminal.stdout, Show).unwrap();
-                    } else if self.mode == Mode::Insert {
-                        self.cursor_position.x = self.cursor_position.x.saturating_sub(1);
-                        self.terminal.set_cursor_position(&self.cursor_position);
+                    if self.mode != Mode::Normal {
+                        self.check_mode(pressed_key);
                     }
 
                     self.change_mode(Mode::Normal);
@@ -255,7 +215,6 @@ impl<'a> Editor<'a> {
             }
         };
 
-        self.terminal.stdout.flush().unwrap();
         self.scroll();
         Ok(())
     }
@@ -445,10 +404,7 @@ impl<'a> Editor<'a> {
                 // changing modes
                 Key::Char('i') => self.change_mode(Mode::Insert),
 
-                Key::Char(':') => {
-                    self.prev_cursor_position = self.cursor_position;
-                    self.change_mode(Mode::Command);
-                }
+                Key::Char(':') => self.change_mode(Mode::Command),
 
                 Key::Char('a') => {
                     x = x.saturating_add(1);
@@ -490,16 +446,11 @@ impl<'a> Editor<'a> {
     }
 
     fn command_mode(&mut self, key: Event) {
-        queue!(&mut self.terminal.stdout, Hide).unwrap();
-
         let stdout = io::stdout();
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = tui::Terminal::new(backend).unwrap();
 
-        // When the window gets to small vertically or horizontally this breaks.
         run_app(&mut terminal, &mut self.app, key);
-
-        self.terminal.stdout.flush().unwrap();
     }
 
     fn insert_mode(&mut self, key: Event) {
@@ -526,6 +477,8 @@ impl<'a> Editor<'a> {
                 }
 
                 Key::Esc => {
+                    self.cursor_position.x = self.cursor_position.x.saturating_sub(1);
+                    self.terminal.set_cursor_position(&self.cursor_position);
                     self.change_mode(Mode::Normal);
                 }
 

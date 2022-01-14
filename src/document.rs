@@ -1,5 +1,4 @@
 use std::fs;
-use std::io::prelude::*;
 
 use super::editor::Position;
 use super::gap_buffer::GapBuffer;

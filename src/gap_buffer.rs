@@ -1,8 +1,6 @@
 use std::cmp;
 use std::fmt;
 
-use super::editor::Position;
-use std::io::prelude::*;
 use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Default, Clone)]

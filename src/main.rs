@@ -4,11 +4,9 @@ use editor::Editor;
 mod document;
 mod gap_buffer;
 mod modes;
-mod rows;
 mod status_message;
 mod terminal;
 mod ui;
-mod window;
 
 use std::io::stdout;
 

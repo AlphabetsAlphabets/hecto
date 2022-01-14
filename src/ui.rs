@@ -8,13 +8,7 @@ use tui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crossterm::{
-    queue,
-    cursor::{position, CursorShape, Hide, Show},
-    event::{poll, read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod},
-    style::Color as ColorC,
-    terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
+use crossterm::event::{Event, KeyCode as Key};
 
 pub struct App<'a> {
     pub input: String,
@@ -77,6 +71,7 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
 }
 
 pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App, key: Event)  {
+    terminal.hide_cursor().unwrap();
     terminal.draw(|f| ui(f, app)).unwrap();
 
     if let Event::Key(event) = key {
@@ -87,8 +82,13 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App, key: Event
             Key::Backspace => {
                 app.input.pop();
             }
+            Key::Esc => {
+                app.input.clear();
+                terminal.show_cursor().unwrap();
+            }
             Key::Enter => {
                 let command = app.input.to_uppercase();
+                terminal.show_cursor().unwrap();
                 app.input.clear();
             }
             _ => (),

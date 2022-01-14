@@ -86,6 +86,14 @@ impl Terminal {
         execute!(self.stdout, cursor_shape).unwrap();
     }
 
+    pub fn hide_cursor(&mut self) {
+        execute!(self.stdout, cursor::Hide).unwrap();
+    }
+
+    pub fn show_cursor(&mut self) {
+        execute!(self.stdout, cursor::Show).unwrap();
+    }
+
     pub fn flush(&mut self) {
         self.stdout.flush().unwrap();
     }
