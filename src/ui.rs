@@ -1,26 +1,29 @@
 use tui::{
-    Terminal,
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color as ColorT, Modifier, Style},
     terminal::Frame,
     text::{Span, Spans},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Paragraph, ListItem, List},
+    Terminal,
 };
 
 use crossterm::event::{Event, KeyCode as Key};
 
-pub struct App<'a> {
+pub struct App {
     pub input: String,
-    pub commands: Vec<Spans<'a>>
+    pub commands: Vec<String>,
 }
 
-impl Default for App<'_> {
+impl Default for App {
     fn default() -> Self {
         let mut commands = vec![];
-        commands.push(Spans::from("SAVE"));
-        commands.push(Spans::from("QUIT"));
-        Self { input: "".to_string(), commands }
+        commands.push("SAVE".to_string());
+        commands.push("QUIT".to_string());
+        Self {
+            input: "".to_string(),
+            commands,
+        }
     }
 }
 
@@ -52,12 +55,16 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
         ))
     };
 
-    let paragraph = Paragraph::new(app.commands.clone())
-        .style(Style::default())
-        .block(create_block("COMMANDS".to_string()))
-        .alignment(Alignment::Center);
+    let mut commands = vec![];
+    for command in &app.commands {
+        commands.push(ListItem::new(command.clone()));
+    }
 
-    f.render_widget(paragraph, chunks[1]);
+    let commands = List::new(commands)
+        .style(Style::default())
+        .block(create_block("COMMANDS".to_string()));
+
+    f.render_widget(commands, chunks[1]);
 
     // Clear the area from text to make space for input box.
     let block = Block::default().style(Style::default().fg(ColorT::White));
@@ -68,9 +75,9 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
         .block(Block::default().borders(Borders::ALL).title("Input"));
 
     f.render_widget(input, chunks[2]);
+    f.set_cursor(chunks[2].x + app.input.len() as u16 + 1, chunks[2].y + 1);
 }
-
-pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App, key: Event)  {
+pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App, key: Event) {
     terminal.hide_cursor().unwrap();
     terminal.draw(|f| ui(f, app)).unwrap();
 
@@ -87,11 +94,12 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App, key: Event
                 terminal.show_cursor().unwrap();
             }
             Key::Enter => {
-                let command = app.input.to_uppercase();
-                terminal.show_cursor().unwrap();
                 app.input.clear();
+                let command = app.input.to_uppercase();
+
+                terminal.show_cursor().unwrap();
             }
-            _ => (),
+            _ => ()
         }
-    }
+    } 
 }

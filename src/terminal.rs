@@ -7,9 +7,35 @@ use crossterm::execute;
 use crossterm::style::{Color, SetBackgroundColor, SetForegroundColor};
 use crossterm::terminal::{enable_raw_mode, size, Clear, ClearType};
 
+#[derive(Clone)]
 pub struct Size {
     pub width: u16,
     pub height: u16,
+}
+
+impl PartialEq for Size {
+    fn eq(&self, other: &Size) -> bool {
+        let prev_width = self.width;
+        let prev_height = self.height;
+        let prev = (prev_width, prev_height);
+
+        let cur_width = other.width;
+        let cur_height = other.height;
+        let cur = (cur_width, cur_height);
+
+        prev == cur
+    }
+}
+
+impl PartialEq<(u16, u16)> for Size {
+    /// other: (width, height)
+    fn eq(&self, prev_dim: &(u16, u16)) -> bool {
+        let cur_width = self.width;
+        let cur_height = self.height;
+        let cur_dim = (cur_width, cur_height);
+
+        cur_dim == *prev_dim
+    }
 }
 
 pub struct Terminal {
@@ -33,13 +59,15 @@ impl Terminal {
         Ok(term)
     }
 
-    pub fn update_dimensions(&mut self) {
-        let size = size().unwrap();
-        self.clear_screen();
-        self.size = Size {
-            width: size.0.saturating_sub(1),
-            height: size.1.saturating_sub(3),
-        };
+    pub fn update_dimensions(&mut self, prev_dim: Size) {
+        let cur_dim = size().unwrap();
+        if prev_dim != cur_dim {
+            self.clear_screen();
+            self.size = Size {
+                width: cur_dim.0.saturating_sub(1),
+                height: cur_dim.1.saturating_sub(3),
+            };
+        }
     }
 
     pub fn clear_screen(&mut self) {
@@ -63,6 +91,10 @@ impl Terminal {
 
     pub fn size(&self) -> &Size {
         &self.size
+    }
+
+    pub fn dim(&self) -> (u16, u16) {
+        (self.size.width, self.size.height)
     }
 
     pub fn set_bg_color(&mut self, color: Color) {

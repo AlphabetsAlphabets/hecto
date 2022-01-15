@@ -15,19 +15,18 @@ use super::status_message::StatusMessage;
 
 use super::gap_buffer::GapBuffer;
 
-use super::ui::{App, run_app};
+use super::ui::{run_app, App};
 use tui::backend::CrosstermBackend;
 
 use super::document;
 use document::Document;
 
 use crossterm::{
-    execute,
-    queue,
     cursor::CursorShape,
     event::{poll, read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod},
+    execute, queue,
     style::Color,
-    terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen},
 };
 
 use std::io::prelude::*;
@@ -85,7 +84,7 @@ impl<T: fmt::Debug> fmt::Debug for Object<T> {
     }
 }
 
-pub struct Editor<'a> {
+pub struct Editor {
     mode: Mode,
     offset: Position,
     document: Document,
@@ -93,10 +92,10 @@ pub struct Editor<'a> {
     cursor_position: Position,
     should_quit: bool,
     status: StatusMessage,
-    app: App<'a>,
+    app: App,
 }
 
-impl<'a> Editor<'a> {
+impl Editor {
     pub fn new(stdout: io::Stdout) -> Self {
         let args: Vec<String> = env::args().collect();
         let mut initial_status = "Press CTRL + Q to QUIT.".to_string();
@@ -133,7 +132,7 @@ impl<'a> Editor<'a> {
             terminal,
             cursor_position: Position { x: 0, y: 0 },
             status: StatusMessage::from(initial_status),
-            app
+            app,
         }
     }
 
@@ -150,7 +149,6 @@ impl<'a> Editor<'a> {
         if self.mode == Mode::Normal {
             self.terminal.change_cursor_shape(CursorShape::Block);
             self.normal_mode(key);
-
         } else if self.mode == Mode::Command {
             self.command_mode(key);
         } else {
@@ -176,10 +174,10 @@ impl<'a> Editor<'a> {
                 disable_raw_mode().unwrap();
                 queue!(&mut self.terminal.stdout, EnterAlternateScreen).unwrap();
                 break;
-
             } else if self.mode != Mode::Command {
-                self.terminal.update_dimensions();
+                self.terminal.update_dimensions(self.terminal.size().clone());
 
+                self.terminal.hide_cursor();
                 self.draw_rows();
                 self.draw_status_bar();
                 self.draw_message_bar();
@@ -190,6 +188,14 @@ impl<'a> Editor<'a> {
                 };
 
                 self.terminal.set_cursor_position(&pos);
+                self.terminal.show_cursor();
+            } else if self.mode == Mode::Command {
+                let prev_dim = self.terminal.size().clone();
+
+                // self.terminal.update_dimensions(self.terminal.size().clone());
+
+                let cur_dim = self.terminal.size().clone();
+                let _result = prev_dim != cur_dim;
             }
 
             if let Err(error) = self.process_keypress() {
