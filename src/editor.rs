@@ -7,7 +7,6 @@ use std::time::Instant;
 use std::fmt;
 
 use super::terminal;
-use crossterm::cursor::Hide;
 use terminal::Terminal;
 
 use super::modes::Mode;
@@ -15,7 +14,7 @@ use super::status_message::StatusMessage;
 
 use super::gap_buffer::GapBuffer;
 
-use super::ui::{run_command_mode, App};
+use super::ui::{run_command_mode, App, Command};
 use tui::backend::CrosstermBackend;
 
 use super::document;
@@ -82,6 +81,13 @@ impl<T: fmt::Debug> fmt::Debug for Object<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:#?}", self.obj)
     }
+}
+
+pub fn create_event(key: Key, modifier: Mod) -> Event {
+    Event::Key(KeyEvent {
+        code: key,
+        modifiers: modifier,
+    })
 }
 
 pub struct Editor {
@@ -166,7 +172,7 @@ impl Editor {
         };
 
         loop {
-            let key = self.create_event(Key::Null, Mod::NONE);
+            let key = create_event(Key::Null, Mod::NONE);
             self.check_mode(key);
 
             if self.should_quit {
@@ -263,7 +269,7 @@ impl Editor {
                         }
                     }
 
-                    // let s_key = self.create_event(Key::Char('s'), Mod::NONE);
+                    // let s_key = create_event(Key::Char('s'), Mod::NONE);
                     // self.normal_mode(s_key);
                 }
 
@@ -332,8 +338,7 @@ impl Editor {
                             todo!("This is a shortcut key to save a file.");
                         } else {
                             let status = StatusMessage::from("File written.");
-                            todo!("Can't save file.");
-                            // self.document.save_file();
+                            self.document.save_file();
                             self.status = status;
                         }
                     } else {
@@ -457,7 +462,15 @@ impl Editor {
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = tui::Terminal::new(backend).unwrap();
 
-        run_command_mode(&mut terminal, &mut self.app, key);
+        match run_command_mode(&mut terminal, &mut self.app, key) {
+            Command::Instruction(mode, (key, modifier)) => {
+                let event = create_event(key, modifier);
+                if mode == Mode::Normal {
+                    self.normal_mode(event);
+                }
+            }
+            _ => (),
+        }
     }
 
     fn insert_mode(&mut self, key: Event) {
@@ -465,21 +478,21 @@ impl Editor {
         if let Event::Key(event) = key {
             match event.code {
                 Key::Left => {
-                    let h_key = self.create_event(Key::Char('h'), Mod::NONE);
+                    let h_key = create_event(Key::Char('h'), Mod::NONE);
                     self.normal_mode(h_key);
                 }
                 Key::Right => {
-                    let l_key = self.create_event(Key::Char('l'), Mod::NONE);
+                    let l_key = create_event(Key::Char('l'), Mod::NONE);
                     self.normal_mode(l_key);
                 }
 
                 Key::Up => {
-                    let k_key = self.create_event(Key::Char('k'), Mod::NONE);
+                    let k_key = create_event(Key::Char('k'), Mod::NONE);
                     self.normal_mode(k_key);
                 }
 
                 Key::Down => {
-                    let j_key = self.create_event(Key::Char('j'), Mod::NONE);
+                    let j_key = create_event(Key::Char('j'), Mod::NONE);
                     self.normal_mode(j_key);
                 }
 
@@ -552,13 +565,6 @@ impl Editor {
         }
 
         ws_count
-    }
-
-    fn create_event(&self, key: Key, modifier: Mod) -> Event {
-        Event::Key(KeyEvent {
-            code: key,
-            modifiers: modifier,
-        })
     }
 
     fn draw_welcome_message(&self) {

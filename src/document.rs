@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::Write;
 
 use super::editor::Position;
 use super::gap_buffer::GapBuffer;
@@ -89,6 +90,11 @@ impl Document {
     }
 
     pub fn save_file(&mut self) {
-        if let Ok(mut file) = self.truncate_and_open_file() {}
+        if let Ok(mut file) = self.truncate_and_open_file() {
+            for buffer in &self.gap_buffer {
+                let string = format!("{}\n", buffer.line());
+                file.write_all(string.as_bytes()).unwrap();
+            }
+        }
     }
 }
