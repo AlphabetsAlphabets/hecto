@@ -3,16 +3,23 @@ use tui::{
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color as ColorT, Modifier, Style},
     terminal::Frame,
-    text::{Span, Spans},
-    widgets::{Block, Borders, Paragraph, ListItem, List},
+    text::Span,
+    widgets::{Block, Borders, List, ListItem, Paragraph},
     Terminal,
 };
 
 use crossterm::event::{Event, KeyCode as Key};
 
+#[derive(PartialEq)]
+enum State {
+    Fine,
+    InvalidCommand,
+}
+
 pub struct App {
     pub input: String,
     pub commands: Vec<String>,
+    state: State,
 }
 
 impl Default for App {
@@ -23,11 +30,12 @@ impl Default for App {
         Self {
             input: "".to_string(),
             commands,
+            state: State::Fine,
         }
     }
 }
 
-pub fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
+pub fn command_window<B: Backend>(f: &mut Frame<B>, app: &App) {
     let size = f.size();
 
     let chunks = Layout::default()
@@ -70,16 +78,28 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
     let block = Block::default().style(Style::default().fg(ColorT::White));
     f.render_widget(block, chunks[2]);
 
-    let input = Paragraph::new(app.input.as_ref())
-        .style(Style::default())
-        .block(Block::default().borders(Borders::ALL).title("Input"));
+    let input = if app.state == State::Fine {
+        Paragraph::new(app.input.as_ref())
+            .style(Style::default())
+            .block(Block::default().borders(Borders::ALL).title("Input"))
+    } else {
+        Paragraph::new(app.input.as_ref())
+            .style(Style::default())
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(ColorT::Red))
+                    .title("Invalid Command"),
+            )
+    };
 
     f.render_widget(input, chunks[2]);
     f.set_cursor(chunks[2].x + app.input.len() as u16 + 1, chunks[2].y + 1);
 }
-pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App, key: Event) {
+
+pub fn run_command_mode<B: Backend>(terminal: &mut Terminal<B>, app: &mut App, key: Event) {
     terminal.hide_cursor().unwrap();
-    terminal.draw(|f| ui(f, app)).unwrap();
+    terminal.draw(|f| command_window(f, app)).unwrap();
 
     if let Event::Key(event) = key {
         match event.code {
@@ -94,12 +114,17 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App, key: Event
                 terminal.show_cursor().unwrap();
             }
             Key::Enter => {
-                app.input.clear();
                 let command = app.input.to_uppercase();
+                let mut iter = app.commands.iter();
+                if let Some(_) = iter.find(|&e| e == &command) {
+                    app.state = State::Fine;
+                } else {
+                    app.state = State::InvalidCommand;
+                }
 
-                terminal.show_cursor().unwrap();
+                app.input.clear();
             }
-            _ => ()
+            _ => (),
         }
-    } 
+    }
 }

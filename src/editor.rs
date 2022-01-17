@@ -15,7 +15,7 @@ use super::status_message::StatusMessage;
 
 use super::gap_buffer::GapBuffer;
 
-use super::ui::{run_app, App};
+use super::ui::{run_command_mode, App};
 use tui::backend::CrosstermBackend;
 
 use super::document;
@@ -175,7 +175,8 @@ impl Editor {
                 queue!(&mut self.terminal.stdout, EnterAlternateScreen).unwrap();
                 break;
             } else if self.mode != Mode::Command {
-                self.terminal.update_dimensions(self.terminal.size().clone());
+                self.terminal
+                    .update_dimensions(self.terminal.size().clone());
 
                 self.terminal.hide_cursor();
                 self.draw_rows();
@@ -456,7 +457,7 @@ impl Editor {
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = tui::Terminal::new(backend).unwrap();
 
-        run_app(&mut terminal, &mut self.app, key);
+        run_command_mode(&mut terminal, &mut self.app, key);
     }
 
     fn insert_mode(&mut self, key: Event) {
