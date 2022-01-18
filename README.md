@@ -1,5 +1,5 @@
 # Hecto
-Hecto is my attempt at making a very basic clone of vim/nvim.
+Hecto is my attempt at making a very basic clone of vim/nvim. As for contributing feel free to do so. You can either add features, remove redudant ones, improve current ones etc. I am new to GitHub so it serves as practice for me when you do shoot in a pull request.
 
 
 # Keybindings
