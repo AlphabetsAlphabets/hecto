@@ -6,6 +6,8 @@ use std::time::Instant;
 
 use std::fmt;
 
+use crate::ui::State;
+
 use super::terminal;
 use terminal::Terminal;
 
@@ -23,12 +25,20 @@ use document::Document;
 use crossterm::{
     cursor::CursorShape,
     event::{poll, read, Event, KeyCode as Key, KeyEvent, KeyModifiers as Mod},
-    execute, queue,
+    queue,
     style::Color,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen},
 };
 
-use std::io::prelude::*;
+struct Foo {
+    bar: String,
+}
+
+impl Foo {
+    fn new(bar: String) -> Self {
+        Self { bar }
+    }
+}
 
 const STATUS_FG_COLOUR: Color = Color::Rgb {
     r: 63,
@@ -89,6 +99,7 @@ pub fn create_event(key: Key, modifier: Mod) -> Event {
         modifiers: modifier,
     })
 }
+
 
 pub struct Editor {
     mode: Mode,
@@ -340,6 +351,7 @@ impl Editor {
                             let status = StatusMessage::from("File written.");
                             self.document.save_file();
                             self.status = status;
+                            self.app.state = State::Success;
                         }
                     } else {
                         if let Some(row) = self.document.buffer(y) {

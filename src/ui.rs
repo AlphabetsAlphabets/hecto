@@ -17,7 +17,7 @@ pub enum Command {
 }
 
 #[derive(PartialEq)]
-enum State {
+pub enum State {
     Fine,
     Success,
     InvalidCommand,
@@ -26,7 +26,7 @@ enum State {
 pub struct App {
     pub input: String,
     pub commands: Vec<String>,
-    state: State,
+    pub state: State,
     command: String,
 }
 
@@ -115,7 +115,7 @@ pub fn command_window<B: Backend>(f: &mut Frame<B>, app: &App) {
             )
     } else if app.state == State::Success {
         Paragraph::new(app.input.as_ref())
-            .style(Style::default())
+            .style(Style::default().fg(ColorT::Green))
             .block(
                 Block::default()
                     .borders(Borders::ALL)
@@ -218,6 +218,7 @@ pub fn run_command_mode<B: Backend>(
     if let Event::Key(event) = key {
         match event.code {
             Key::Char(c) => {
+                app.state = State::Fine;
                 app.input.push(c);
                 Command::None
             }
