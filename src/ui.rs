@@ -43,6 +43,58 @@ impl Default for App {
         }
     }
 }
+fn state_returns<'a>(commands: Vec<ListItem<'a>>, app: &'a App) -> (List<'a>, Paragraph<'a>) {
+    let command_block = Block::default()
+        .borders(Borders::ALL)
+        .title(Span::styled(
+            " commands ".to_string(),
+            Style::default().add_modifier(Modifier::BOLD),
+        ))
+        .title_alignment(Alignment::Center);
+
+    let mut commands = List::new(commands.clone())
+        .style(Style::default())
+        .block(command_block.clone());
+
+    let input_block = Block::default()
+                .borders(Borders::ALL)
+                .title("Type the command")
+                .title_alignment(Alignment::Center);
+
+    let mut input = Paragraph::new(app.input.as_ref())
+            .style(Style::default())
+            .block(input_block.clone());
+
+    if app.state == State::Success {
+        commands = commands
+            .style(Style::default())
+            .block(command_block.border_style(Style::default().fg(ColorT::Green)));
+
+        input = Paragraph::new(app.input.as_ref())
+            .style(Style::default().fg(ColorT::Green))
+            .block(input_block.title("Success"));
+
+    } else if app.state == State::Fine {
+        commands = commands
+            .style(Style::default())
+            .block(command_block.border_style(Style::default().fg(ColorT::White)));
+
+        input = Paragraph::new(app.input.as_ref())
+            .style(Style::default().fg(ColorT::White))
+            .block(input_block.title("Type the command"));
+
+    } else {
+        commands = commands
+            .style(Style::default())
+            .block(command_block.border_style(Style::default().fg(ColorT::Red)));
+
+        input = Paragraph::new(app.input.as_ref())
+            .style(Style::default().fg(ColorT::Red))
+            .block(input_block.title("Invalid command"));
+    }
+
+    (commands, input)
+}
 
 pub fn command_window<B: Backend>(f: &mut Frame<B>, app: &App) {
     let size = f.size();
@@ -79,62 +131,17 @@ pub fn command_window<B: Backend>(f: &mut Frame<B>, app: &App) {
         commands.push(ListItem::new(command.clone()));
     }
 
-    let mut title = " COMMANDS ".to_string();
-    let commands = if app.state == State::Fine {
-        List::new(commands)
-            .style(Style::default())
-            .block(create_block(title).title_alignment(Alignment::Center))
-    } else if app.state == State::Success {
-        List::new(commands).style(Style::default()).block(
-            create_block(title)
-                .border_style(Style::default().fg(ColorT::Green))
-                .title_alignment(Alignment::Center),
-        )
-    } else {
-        List::new(commands).style(Style::default()).block(
-            create_block(title)
-                .border_style(Style::default().fg(ColorT::Red))
-                .title_alignment(Alignment::Center),
-        )
-    };
+    // TODO: The styles, and such change depending on the state of the app.
+    // Find a way to make it cleaner, because this is way too ugly to look at
+    // plus a lot of code is replicated.
+    let windows = state_returns(commands, &app);
 
-    f.render_widget(commands, chunks[1]);
+    f.render_widget(windows.0, chunks[1]);
 
     // Clear the area from text to make space for input box.
     let block = Block::default().style(Style::default().fg(ColorT::White));
     f.render_widget(block, chunks[2]);
-
-    let input = if app.state == State::Fine {
-        Paragraph::new(app.input.as_ref())
-            .style(Style::default())
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title("Type the command")
-                    .title_alignment(Alignment::Center),
-            )
-    } else if app.state == State::Success {
-        Paragraph::new(app.input.as_ref())
-            .style(Style::default().fg(ColorT::Green))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title("Success")
-                    .title_alignment(Alignment::Center),
-            )
-    } else {
-        Paragraph::new(app.input.as_ref())
-            .style(Style::default())
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(ColorT::Red))
-                    .title_alignment(Alignment::Center)
-                    .title("Invalid Command"),
-            )
-    };
-
-    f.render_widget(input, chunks[2]);
+    f.render_widget(windows.1, chunks[2]);
 
     if app.state == State::InvalidCommand {
         let dyn_chunks = Layout::default()

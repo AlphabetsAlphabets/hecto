@@ -100,7 +100,6 @@ pub fn create_event(key: Key, modifier: Mod) -> Event {
     })
 }
 
-
 pub struct Editor {
     mode: Mode,
     offset: Position,
