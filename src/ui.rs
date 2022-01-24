@@ -96,7 +96,7 @@ impl Default for App {
 
 fn state_returns<'a>(
     commands: Vec<ListItem<'a>>,
-    app: &'a App,
+    app: &'a mut App,
 ) -> (List<'a>, Paragraph<'a>, Option<Vec<Spans<'a>>>) {
     let command_block = Block::default()
         .borders(Borders::ALL)
@@ -178,7 +178,7 @@ fn state_returns<'a>(
     }
 }
 
-pub fn command_window<B: Backend>(f: &mut Frame<B>, app: &App) {
+pub fn command_window<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let size = f.size();
 
     // FIXME: The reason the window isn't resized properly is because the horizontal margin is set.
@@ -211,8 +211,89 @@ pub fn command_window<B: Backend>(f: &mut Frame<B>, app: &App) {
         })
         .collect();
 
-    let windows = state_returns(items, &app);
-    f.render_widget(windows.0, chunks[1]);
+    // Commands window
+    // let windows = state_returns(items, app);
+    let command_block = Block::default()
+        .borders(Borders::ALL)
+        .title(Span::styled(
+            " commands ".to_string(),
+            Style::default().add_modifier(Modifier::BOLD),
+        ))
+        .title_alignment(Alignment::Center);
+
+    let commands = List::new(items)
+        .style(Style::default())
+        .block(command_block.clone().title_alignment(Alignment::Center))
+        .highlight_style(
+            Style::default()
+                .bg(ColorT::Rgb(252, 170, 7))
+                .add_modifier(Modifier::BOLD),
+        )
+        .highlight_symbol(">> ");
+
+    let input_block = Block::default()
+        .borders(Borders::ALL)
+        .title("Type the command")
+        .title_alignment(Alignment::Center);
+
+    let input = Paragraph::new(app.input.as_ref())
+        .style(Style::default())
+        .block(input_block.clone());
+
+    let cmd = format!("'{}'", app.current_command);
+    let text = vec![
+        Spans::from(vec![Span::styled(
+            "Invalid Command",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(ColorT::Red),
+        )]),
+        Spans::from(vec![
+            Span::from("The command "),
+            Span::styled(
+                cmd.clone(),
+                Style::default()
+                    .add_modifier(Modifier::BOLD)
+                    .fg(ColorT::Blue),
+            ),
+            Span::from(" is not valid."),
+        ]),
+    ];
+
+    let windows = if app.state == State::Success {
+        let commands = commands
+            .style(Style::default())
+            .block(command_block.border_style(Style::default().fg(ColorT::Green)));
+
+        let input = input
+            .style(Style::default().fg(ColorT::Green))
+            .block(input_block.title("Success"));
+
+        (commands, input, None)
+    } else if app.state == State::Fine {
+        let commands = commands
+            .style(Style::default())
+            .block(command_block.border_style(Style::default().fg(ColorT::White)));
+
+        let input = Paragraph::new(app.input.as_ref())
+            .style(Style::default().fg(ColorT::White))
+            .block(input_block.title("Type the command"));
+
+        (commands, input, None)
+    } else {
+        let commands = commands
+            .style(Style::default())
+            .block(command_block.border_style(Style::default().fg(ColorT::Red)));
+
+        let input = Paragraph::new(app.input.as_ref())
+            .style(Style::default().fg(ColorT::Red))
+            .block(input_block.title("Invalid command"));
+
+        (commands, input, Some(text))
+    };
+
+    f.render_stateful_widget(windows.0, chunks[1], &mut app.commands.state);
+    // f.render_stateful_widget(items, windows.0, chunks[1]);
 
     // Clear the area from text to make space for input box.
     let block = Block::default().style(Style::default().fg(ColorT::White));
