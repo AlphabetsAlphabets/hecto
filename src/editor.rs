@@ -30,16 +30,6 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen},
 };
 
-struct Foo {
-    bar: String,
-}
-
-impl Foo {
-    fn new(bar: String) -> Self {
-        Self { bar }
-    }
-}
-
 const STATUS_FG_COLOUR: Color = Color::Rgb {
     r: 63,
     g: 63,
@@ -133,11 +123,6 @@ impl Editor {
         .unwrap();
 
         let terminal = Terminal::new(stdout).expect("Failed to initialize terminal.");
-        let height = terminal.size().height as f32;
-        let width = terminal.size().width as f32;
-
-        let commands = vec!["SAVE FILE".to_string(), "QUIT".to_string()];
-
         let app = App::default();
 
         Self {
