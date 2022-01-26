@@ -31,8 +31,9 @@ pub struct StatefulList {
 impl Default for StatefulList {
     fn default() -> Self {
         let mut items = vec![];
-        items.push("SAVE".to_string());
-        items.push("QUIT".to_string());
+        items.push("save".to_string());
+        items.push("quit".to_string());
+        items.push("save & quit".to_string());
         Self {
             state: ListState::default(),
             items,
@@ -41,7 +42,7 @@ impl Default for StatefulList {
 }
 
 impl StatefulList {
-    fn next(&mut self) {
+    fn next(&mut self) -> String {
         let i = match self.state.selected() {
             Some(i) => {
                 if i >= self.items.len() - 1 {
@@ -54,9 +55,10 @@ impl StatefulList {
         };
 
         self.state.select(Some(i));
+        self.items.get(i).unwrap().to_owned()
     }
 
-    fn previous(&mut self) {
+    fn previous(&mut self) -> String {
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {
@@ -67,7 +69,9 @@ impl StatefulList {
             }
             None => 0,
         };
+
         self.state.select(Some(i));
+        self.items.get(i).unwrap().to_owned()
     }
 
     fn unselect(&mut self) {
@@ -80,6 +84,7 @@ pub struct App {
     pub commands: StatefulList,
     pub state: State,
     current_command: String,
+    selected: bool,
 }
 
 impl Default for App {
@@ -90,6 +95,7 @@ impl Default for App {
             commands,
             state: State::Fine,
             current_command: String::new(),
+            selected: false,
         }
     }
 }
@@ -329,6 +335,21 @@ pub fn command_window<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     f.set_cursor(chunks[2].x + app.input.len() as u16 + 1, chunks[2].y + 1);
 }
 
+fn process_command(command: String, app: &mut App) -> Command {
+    let command = app.input.to_lowercase();
+    let mut iter = app.commands.items.iter();
+    app.current_command = app.input.clone();
+
+    app.input.clear();
+    if let Some(_) = iter.find(|&e| e == &command) {
+        app.state = State::Fine;
+        Command::Instruction(Mode::Normal, (Key::Char('w'), Mod::ALT))
+    } else {
+        app.state = State::InvalidCommand;
+        Command::None
+    }
+}
+
 pub fn run_command_mode<B: Backend>(
     terminal: &mut Terminal<B>,
     app: &mut App,
@@ -339,16 +360,23 @@ pub fn run_command_mode<B: Backend>(
 
     if let Event::Key(event) = key {
         match event.code {
-            Key::Char('j') => {
-                if event.modifiers.contains(Mod::CONTROL) {
-                    app.commands.next();
-                };
-
-                Command::None
-            }
             Key::Char(c) => {
-                app.state = State::Fine;
-                app.input.push(c);
+                if event.modifiers.contains(Mod::CONTROL) {
+                    if c == 'j' {
+                        app.input = app.commands.next();
+                        app.selected = true;
+                    } else if c == 'k' {
+                        app.input = app.commands.previous();
+                        app.selected = true;
+                    } else if c == 'd' {
+                        app.input.clear();
+                        app.commands.unselect();
+                        app.selected = false;
+                    }
+                } else {
+                    app.state = State::Fine;
+                    app.input.push(c);
+                }
                 Command::None
             }
             Key::Backspace => {
@@ -361,18 +389,26 @@ pub fn run_command_mode<B: Backend>(
                 Command::None
             }
             Key::Enter => {
-                let command = app.input.to_uppercase();
-                let mut iter = app.commands.items.iter();
-                app.current_command = app.input.clone();
-
-                app.input.clear();
-                if let Some(_) = iter.find(|&e| e == &command) {
-                    app.state = State::Fine;
-                    Command::Instruction(Mode::Normal, (Key::Char('w'), Mod::ALT))
+                if app.selected {
+                    let command = process_command(app.input.to_lowercase(), app);
+                    app.commands.unselect();
+                    app.selected = false;
+                    command
                 } else {
-                    app.state = State::InvalidCommand;
-                    Command::None
+                    process_command(app.input.to_lowercase(), app)
                 }
+                // let command = app.input.to_lowercase();
+                // let mut iter = app.commands.items.iter();
+                // app.current_command = app.input.clone();
+
+                // app.input.clear();
+                // if let Some(_) = iter.find(|&e| e == &command) {
+                //     app.state = State::Fine;
+                //     Command::Instruction(Mode::Normal, (Key::Char('w'), Mod::ALT))
+                // } else {
+                //     app.state = State::InvalidCommand;
+                //     Command::None
+                // }
             }
 
             _ => Command::None,
